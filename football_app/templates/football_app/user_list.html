@@ -1,0 +1,95 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}Users - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-users"></i> Top Prediction Players
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy"></i> Leaderboard (Top 50)</h5>
+            </div>
+            <div class="card-body">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Total Points</th>
+                                <th>Predictions</th>
+                                <th>Correct</th>
+                                <th>Accuracy</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    {% if forloop.counter <= 3 %}
+                                        <span class="badge bg-warning">{{ forloop.counter }}</span>
+                                    {% else %}
+                                        {{ forloop.counter }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if user.profile.avatar_image %}
+                                            <img src="{{ user.profile.avatar_image }}" alt="{{ user.username }}" 
+                                                 style="width: 32px; height: 32px; border-radius: 50%;" class="me-2">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                                 style="width: 32px; height: 32px; color: white;">
+                                                {{ user.username|first|upper }}
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <strong>{{ user.username }}</strong>
+                                            {% if user.first_name or user.last_name %}
+                                                <br><small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ user.profile.total_points|default:0 }}</span>
+                                </td>
+                                <td>{{ user.total_predictions }}</td>
+                                <td>{{ user.correct_predictions }}</td>
+                                <td>
+                                    {% if user.total_predictions > 0 %}
+                                        {% widthratio user.correct_predictions user.total_predictions 100 %}%
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'user_detail' user.id %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No users found.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

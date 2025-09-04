@@ -1,0 +1,175 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}Prediction Center - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-crystal-ball"></i> Prediction Center
+            </h1>
+            <div class="d-flex gap-2">
+                <!-- Season Selector -->
+                {% if available_seasons %}
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-calendar"></i> {{ selected_season.name }}
+                        {% if selected_season.is_current %}
+                            <span class="badge bg-success ms-1">Current</span>
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% for season in available_seasons %}
+                        <li>
+                            <a class="dropdown-item {% if season == selected_season %}active{% endif %}" 
+                               href="?season={{ season.id }}">
+                                {{ season.name }}
+                                {% if season.is_current %}
+                                    <span class="badge bg-success ms-1">Current</span>
+                                {% endif %}
+                                {% if season == selected_season %}
+                                    <i class="fas fa-check ms-2"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <a href="{% url 'bulk_predictions' %}" class="btn btn-success me-2">
+                    <i class="fas fa-list"></i> Bulk Predictions
+                </a>
+                <a href="{% url 'my_predictions' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-history"></i> My Predictions ({{ total_predictions }})
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Groups Info -->
+{% if user_groups %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> 
+            You are predicting matches from <strong>{{ user_groups.count }}</strong> group{{ user_groups.count|pluralize }}:
+            {% for group in user_groups %}
+                <span class="badge bg-primary ms-1">{{ group.name }}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Upcoming Matches -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-alt"></i> Upcoming Matches</h5>
+            </div>
+            <div class="card-body">
+                {% if matches %}
+                    <div class="row">
+                        {% for match in matches %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card {% if match.user_prediction %}border-success{% endif %}">
+                                <div class="card-body">
+                                    <div class="text-center mb-3">
+                                        <strong>{{ match.home_team }}</strong>
+                                        <br>
+                                        <span class="text-muted">vs</span>
+                                        <br>
+                                        <strong>{{ match.away_team }}</strong>
+                                    </div>
+                                    
+                                    <div class="text-center mb-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-trophy"></i> {{ match.league.name }}
+                                        </small>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock"></i> {{ match.match_date|date:"M d, H:i" }}
+                                        </small>
+                                        {% if match.venue %}
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="fas fa-map-marker-alt"></i> {{ match.venue }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+
+                                    {% if match.user_prediction %}
+                                        <div class="alert alert-success text-center mb-3">
+                                            <small>
+                                                <i class="fas fa-check"></i> Predicted: 
+                                                <strong>{{ match.user_prediction.get_predicted_result_display }}</strong>
+                                                {% if match.user_prediction.predicted_home_score is not None %}
+                                                    ({{ match.user_prediction.predicted_home_score }}-{{ match.user_prediction.predicted_away_score }})
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="d-grid">
+                                        {% if match.can_predict %}
+                                            <a href="{% url 'make_prediction' match.id %}" 
+                                               class="btn {% if match.user_prediction %}btn-outline-primary{% else %}btn-primary{% endif %}">
+                                                <i class="fas fa-crystal-ball"></i>
+                                                {% if match.user_prediction %}Update{% else %}Make{% endif %} Prediction
+                                            </a>
+                                        {% else %}
+                                            <button class="btn btn-secondary" disabled>
+                                                <i class="fas fa-lock"></i> Prediction Closed
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No upcoming matches available</h5>
+                        <p class="text-muted">
+                            {% if not user_groups %}
+                                Join a group to start making predictions!
+                                <br>
+                                <a href="{% url 'group_list' %}" class="btn btn-primary mt-2">
+                                    <i class="fas fa-search"></i> Browse Groups
+                                </a>
+                            {% else %}
+                                Check back later for new matches to predict.
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+{% if total_predictions > 0 %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center">
+                <h5>Your Prediction Summary</h5>
+                <p class="mb-0">
+                    You have made <strong>{{ total_predictions }}</strong> prediction{{ total_predictions|pluralize }} so far.
+                    <a href="{% url 'my_predictions' %}" class="btn btn-outline-primary btn-sm ms-2">
+                        <i class="fas fa-eye"></i> View All
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}Leagues - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-trophy"></i> Football Leagues
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    {% for country in countries %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>
+                    {% if country.flag_image %}
+                        <img src="{{ country.flag_image }}" alt="{{ country.name }}" style="width: 24px; height: auto;" class="me-2">
+                    {% endif %}
+                    {{ country.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for league in country.leagues.all %}
+                    <a href="{% url 'league_detail' league.id %}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                {% if league.logo_image %}
+                                    <img src="{{ league.logo_image }}" alt="{{ league.name }}" style="width: 20px; height: auto;" class="me-2">
+                                {% endif %}
+                                {{ league.name }}
+                            </div>
+                            <span class="badge bg-secondary">Level {{ league.level }}</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> No leagues available yet.
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

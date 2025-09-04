@@ -1,0 +1,202 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}{{ profile_user.username }} - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            {% if profile.avatar_image %}
+                <img src="{{ profile.avatar_image }}" alt="{{ profile_user.username }}" 
+                     style="width: 64px; height: 64px; border-radius: 50%;" class="me-3">
+            {% else %}
+                <div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center me-3" 
+                     style="width: 64px; height: 64px; color: white; font-size: 24px;">
+                    {{ profile_user.username|first|upper }}
+                </div>
+            {% endif %}
+            {{ profile_user.username }}
+            {% if profile_user.first_name or profile_user.last_name %}
+                <small class="text-muted">({{ profile_user.first_name }} {{ profile_user.last_name }})</small>
+            {% endif %}
+        </h1>
+        {% if profile.bio %}
+            <p class="lead">{{ profile.bio }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- User Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-primary">{{ profile.total_points }}</h3>
+            <p class="mb-0">Total Points</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-success">{{ profile.total_predictions }}</h3>
+            <p class="mb-0">Predictions Made</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-info">{{ profile.correct_predictions }}</h3>
+            <p class="mb-0">Correct Predictions</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-warning">{{ profile.accuracy_percentage }}%</h3>
+            <p class="mb-0">Accuracy</p>
+        </div>
+    </div>
+</div>
+
+<!-- Group Memberships -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-user-friends"></i> Group Memberships</h5>
+            </div>
+            <div class="card-body">
+                {% if group_memberships %}
+                    <div class="list-group list-group-flush">
+                        {% for membership in group_memberships %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <a href="{% url 'group_detail' membership.group.id %}" class="text-decoration-none">
+                                        <strong>{{ membership.group.name }}</strong>
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">
+                                        Role: {{ membership.get_role_display }}
+                                        {% if membership.group.is_private %}
+                                            <span class="badge bg-secondary ms-1">Private</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ membership.total_points }} pts</span>
+                                    <br>
+                                    <small class="text-muted">{{ membership.accuracy_percentage }}% acc</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No group memberships yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- League Statistics -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> Performance by League</h5>
+            </div>
+            <div class="card-body">
+                {% if league_stats %}
+                    <div class="list-group list-group-flush">
+                        {% for league, stats in league_stats.items %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ league.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ league.country.name }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-primary">{{ stats.points }} pts</span>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ stats.correct }}/{{ stats.total }} ({{ stats.accuracy }}%)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No league statistics available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Predictions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-crystal-ball"></i> Recent Predictions</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_predictions %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Match</th>
+                                <th>League</th>
+                                <th>Prediction</th>
+                                <th>Result</th>
+                                <th>Points</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prediction in recent_predictions %}
+                            <tr>
+                                <td>
+                                    <strong>{{ prediction.match.home_team }}</strong> vs 
+                                    <strong>{{ prediction.match.away_team }}</strong>
+                                </td>
+                                <td>{{ prediction.match.league.name }}</td>
+                                <td>
+                                    {% if prediction.predicted_home_score is not None and prediction.predicted_away_score is not None %}
+                                        {{ prediction.predicted_home_score }}-{{ prediction.predicted_away_score }}
+                                        ({{ prediction.get_predicted_result_display }})
+                                    {% else %}
+                                        {{ prediction.get_predicted_result_display }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prediction.match.is_finished %}
+                                        {{ prediction.match.home_score }}-{{ prediction.match.away_score }}
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ prediction.match.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prediction.match.is_finished %}
+                                        {% if prediction.points_earned > 0 %}
+                                            <span class="badge bg-success">+{{ prediction.points_earned }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">0</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ prediction.created_at|date:"M d, Y" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No predictions made yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

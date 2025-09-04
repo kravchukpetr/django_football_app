@@ -1,0 +1,202 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}{{ group.name }} - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1>
+                    <i class="fas fa-user-friends"></i> {{ group.name }}
+                    {% if group.is_private %}
+                        <span class="badge bg-secondary ms-2">Private</span>
+                    {% else %}
+                        <span class="badge bg-success ms-2">Public</span>
+                    {% endif %}
+                </h1>
+                {% if group.description %}
+                    <p class="lead">{{ group.description }}</p>
+                {% endif %}
+                <small class="text-muted">
+                    Created by {{ group.creator.username }} on {{ group.created_at|date:"M d, Y" }}
+                </small>
+            </div>
+            {% if not is_member and user.is_authenticated %}
+                <div>
+                    {% if not group.is_private %}
+                        <button class="btn btn-success">
+                            <i class="fas fa-plus"></i> Join Group
+                        </button>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Group Info -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-primary">{{ group.member_count }}</h3>
+            <p class="mb-0">Members</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-success">{{ leagues.count }}</h3>
+            <p class="mb-0">Leagues</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-info">{{ group.join_code }}</h3>
+            <p class="mb-0">Join Code</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-warning">{{ group.max_members }}</h3>
+            <p class="mb-0">Max Members</p>
+        </div>
+    </div>
+</div>
+
+<!-- Leaderboard and Leagues -->
+<div class="row">
+    <!-- Leaderboard -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy"></i> Group Leaderboard</h5>
+            </div>
+            <div class="card-body">
+                {% if leaderboard %}
+                <div class="table-responsive">
+                    <table class="table table-striped leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Points</th>
+                                <th>Predictions</th>
+                                <th>Correct</th>
+                                <th>Exact</th>
+                                <th>Accuracy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for membership in leaderboard %}
+                            <tr {% if user == membership.user %}class="table-warning"{% endif %}>
+                                <td>
+                                    {% if forloop.counter <= 3 %}
+                                        <span class="badge bg-warning">{{ forloop.counter }}</span>
+                                    {% else %}
+                                        {{ forloop.counter }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if membership.user.profile.avatar_image %}
+                                            <img src="{{ membership.user.profile.avatar_image }}" alt="{{ membership.user.username }}" 
+                                                 style="width: 32px; height: 32px; border-radius: 50%;" class="me-2">
+                                        {% else %}
+                                            <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                                 style="width: 32px; height: 32px; color: white;">
+                                                {{ membership.user.username|first|upper }}
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <a href="{% url 'user_detail' membership.user.id %}" class="text-decoration-none">
+                                                <strong>{{ membership.user.username }}</strong>
+                                            </a>
+                                            {% if membership.role != 'member' %}
+                                                <br><small class="text-muted">{{ membership.get_role_display }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge bg-primary">{{ membership.total_points }}</span></td>
+                                <td>{{ membership.total_predictions }}</td>
+                                <td>{{ membership.correct_predictions }}</td>
+                                <td>{{ membership.exact_predictions }}</td>
+                                <td>{{ membership.accuracy_percentage }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No members yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Leagues and Recent Activity -->
+    <div class="col-md-4">
+        <!-- Leagues -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy"></i> Group Leagues</h5>
+            </div>
+            <div class="card-body">
+                {% if leagues %}
+                    <div class="list-group list-group-flush">
+                        {% for league in leagues %}
+                        <a href="{% url 'league_detail' league.id %}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% if league.logo_image %}
+                                        <img src="{{ league.logo_image }}" alt="{{ league.name }}" style="width: 20px; height: auto;" class="me-2">
+                                    {% endif %}
+                                    {{ league.name }}
+                                    <br>
+                                    <small class="text-muted">{{ league.country.name }}</small>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No leagues selected yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_predictions %}
+                    <div class="list-group list-group-flush">
+                        {% for prediction in recent_predictions %}
+                        <div class="list-group-item">
+                            <small class="text-muted">{{ prediction.user.username }}</small>
+                            <br>
+                            <strong>{{ prediction.match.home_team }}</strong> vs <strong>{{ prediction.match.away_team }}</strong>
+                            <br>
+                            <small class="text-muted">
+                                {{ prediction.get_predicted_result_display }}
+                                {% if prediction.match.is_finished %}
+                                    {% if prediction.points_earned > 0 %}
+                                        <span class="badge bg-success ms-1">+{{ prediction.points_earned }}</span>
+                                    {% else %}
+                                        <span class="badge bg-danger ms-1">0</span>
+                                    {% endif %}
+                                {% endif %}
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No recent activity.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

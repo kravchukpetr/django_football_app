@@ -1,0 +1,357 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}{{ team.name }} - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'league_list' %}">Leagues</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'league_detail' team.league.id %}">{{ team.league.name }}</a></li>
+                <li class="breadcrumb-item active">{{ team.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                {% if team.logo_image %}
+                    <img src="{{ team.logo_image }}" alt="{{ team.name }}" style="width: 48px; height: auto;" class="me-3">
+                {% endif %}
+                {{ team.name }}
+                <small class="text-muted">{{ team.league.name }}</small>
+            </h1>
+            
+            <div class="d-flex gap-2">
+                <!-- Season Selector -->
+                {% if available_seasons %}
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-calendar"></i> {{ selected_season.name }}
+                        {% if selected_season.is_current %}
+                            <span class="badge bg-success ms-1">Current</span>
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% for season in available_seasons %}
+                        <li>
+                            <a class="dropdown-item {% if season == selected_season %}active{% endif %}" 
+                               href="?season={{ season.id }}">
+                                {{ season.name }}
+                                {% if season.is_current %}
+                                    <span class="badge bg-success ms-1">Current</span>
+                                {% endif %}
+                                {% if season == selected_season %}
+                                    <i class="fas fa-check ms-2"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <a href="{% url 'league_detail' team.league.id %}{% if selected_season %}?season={{ selected_season.id }}{% endif %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-table"></i> League Standings
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Team Statistics -->
+<div class="row mb-4">
+    <div class="col-12">
+        <h5 class="text-muted mb-3">
+            <i class="fas fa-chart-bar"></i> Season Statistics - {{ selected_season.name }}
+            {% if selected_season.is_current %}
+                <span class="badge bg-success ms-2">Current Season</span>
+            {% endif %}
+        </h5>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card text-center">
+            <h3 class="text-primary">{{ stats.matches_played }}</h3>
+            <p class="mb-0">Matches</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card text-center">
+            <h3 class="text-success">{{ stats.wins }}</h3>
+            <p class="mb-0">Wins</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card text-center">
+            <h3 class="text-warning">{{ stats.draws }}</h3>
+            <p class="mb-0">Draws</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card text-center">
+            <h3 class="text-danger">{{ stats.losses }}</h3>
+            <p class="mb-0">Losses</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card text-center">
+            <h3 class="text-info">{{ stats.points }}</h3>
+            <p class="mb-0">Points</p>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stats-card text-center">
+            <h3 class="{% if stats.goal_difference > 0 %}text-success{% elif stats.goal_difference < 0 %}text-danger{% else %}text-muted{% endif %}">
+                {% if stats.goal_difference > 0 %}+{% endif %}{{ stats.goal_difference }}
+            </h3>
+            <p class="mb-0">Goal Diff</p>
+        </div>
+    </div>
+</div>
+
+<!-- Goals Statistics -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-futbol"></i> Goals Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6 text-center">
+                        <h4 class="text-success">{{ stats.goals_for }}</h4>
+                        <p class="mb-0">Goals For</p>
+                    </div>
+                    <div class="col-6 text-center">
+                        <h4 class="text-danger">{{ stats.goals_against }}</h4>
+                        <p class="mb-0">Goals Against</p>
+                    </div>
+                </div>
+                {% if stats.matches_played > 0 %}
+                <hr>
+                <div class="row">
+                    <div class="col-6 text-center">
+                        <small class="text-muted">{{ stats.goals_for_avg|floatformat:1 }} per game</small>
+                    </div>
+                    <div class="col-6 text-center">
+                        <small class="text-muted">{{ stats.goals_against_avg|floatformat:1 }} per game</small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line"></i> Recent Form</h5>
+            </div>
+            <div class="card-body">
+                {% if stats.form %}
+                    <div class="d-flex justify-content-center align-items-center">
+                        {% for result in stats.form %}
+                            <span class="badge me-2 {% if result == 'W' %}bg-success{% elif result == 'D' %}bg-warning{% else %}bg-danger{% endif %}" style="font-size: 1.2em;">
+                                {{ result }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                    <p class="text-center text-muted mt-2 mb-0">Last {{ stats.form|length }} matches</p>
+                {% else %}
+                    <p class="text-center text-muted mb-0">No recent matches available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent and Upcoming Matches -->
+<div class="row">
+    <!-- Recent Matches -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Recent Results</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_matches %}
+                    <div class="list-group list-group-flush">
+                        {% for match in recent_matches %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>
+                                        {% if match.home_team == team %}
+                                            {{ match.home_team }} vs {{ match.away_team }}
+                                        {% else %}
+                                            {{ match.away_team }} @ {{ match.home_team }}
+                                        {% endif %}
+                                    </strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ match.league.name }}
+                                        {% if match.venue %} • {{ match.venue }}{% endif %}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="match-result">{{ match.home_score }}-{{ match.away_score }}</span>
+                                    {% if match.home_team == team %}
+                                        {% if match.home_score > match.away_score %}
+                                            <span class="badge bg-success ms-1">W</span>
+                                        {% elif match.home_score < match.away_score %}
+                                            <span class="badge bg-danger ms-1">L</span>
+                                        {% else %}
+                                            <span class="badge bg-warning ms-1">D</span>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if match.away_score > match.home_score %}
+                                            <span class="badge bg-success ms-1">W</span>
+                                        {% elif match.away_score < match.home_score %}
+                                            <span class="badge bg-danger ms-1">L</span>
+                                        {% else %}
+                                            <span class="badge bg-warning ms-1">D</span>
+                                        {% endif %}
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">{{ match.match_date|date:"M d" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No recent matches available for {{ selected_season.name }}.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Matches -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar"></i> Upcoming Matches</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_matches %}
+                    <div class="list-group list-group-flush">
+                        {% for match in upcoming_matches %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>
+                                        {% if match.home_team == team %}
+                                            {{ match.home_team }} vs {{ match.away_team }}
+                                        {% else %}
+                                            {{ match.away_team }} @ {{ match.home_team }}
+                                        {% endif %}
+                                    </strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ match.league.name }}
+                                        {% if match.venue %} • {{ match.venue }}{% endif %}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge {% if match.home_team == team %}bg-success{% else %}bg-primary{% endif %}">
+                                        {% if match.home_team == team %}HOME{% else %}AWAY{% endif %}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">{{ match.match_date|date:"M d, H:i" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No upcoming matches available for {{ selected_season.name }}.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- All Matches Table -->
+{% if all_matches %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> All Matches - {{ selected_season.name }}</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Match</th>
+                                <th>Result</th>
+                                <th>Status</th>
+                                <th>League</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for match in all_matches %}
+                            <tr>
+                                <td>{{ match.match_date|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if match.home_team == team %}
+                                        <strong>{{ match.home_team }}</strong> vs {{ match.away_team }}
+                                        <span class="badge bg-success ms-1">H</span>
+                                    {% else %}
+                                        {{ match.home_team }} vs <strong>{{ match.away_team }}</strong>
+                                        <span class="badge bg-primary ms-1">A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if match.status == 'finished' %}
+                                        <span class="match-result">{{ match.home_score }}-{{ match.away_score }}</span>
+                                        {% if match.home_team == team %}
+                                            {% if match.home_score > match.away_score %}
+                                                <span class="badge bg-success ms-1">W</span>
+                                            {% elif match.home_score < match.away_score %}
+                                                <span class="badge bg-danger ms-1">L</span>
+                                            {% else %}
+                                                <span class="badge bg-warning ms-1">D</span>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if match.away_score > match.home_score %}
+                                                <span class="badge bg-success ms-1">W</span>
+                                            {% elif match.away_score < match.home_score %}
+                                                <span class="badge bg-danger ms-1">L</span>
+                                            {% else %}
+                                                <span class="badge bg-warning ms-1">D</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">{{ match.match_date|date:"H:i" }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if match.status == 'finished' %}bg-success{% elif match.status == 'live' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                        {{ match.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ match.league.name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

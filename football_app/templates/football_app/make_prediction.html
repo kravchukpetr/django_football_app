@@ -1,0 +1,174 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}{% if is_update %}Update{% else %}Make{% endif %} Prediction - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'prediction_center' %}">Prediction Center</a></li>
+                <li class="breadcrumb-item active">{% if is_update %}Update{% else %}Make{% endif %} Prediction</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header text-center">
+                <h4>
+                    <i class="fas fa-crystal-ball"></i> 
+                    {% if is_update %}Update{% else %}Make{% endif %} Prediction
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- Match Information -->
+                <div class="text-center mb-4 p-3 bg-light rounded">
+                    <h5>{{ match.home_team }} vs {{ match.away_team }}</h5>
+                    <div class="text-muted">
+                        <i class="fas fa-trophy"></i> {{ match.league.name }}
+                        <br>
+                        <i class="fas fa-clock"></i> {{ match.match_date|date:"l, F d, Y \a\t H:i" }}
+                        {% if match.venue %}
+                            <br>
+                            <i class="fas fa-map-marker-alt"></i> {{ match.venue }}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Existing Prediction Info -->
+                {% if prediction %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> 
+                    <strong>Current Prediction:</strong> 
+                    {{ prediction.get_predicted_result_display }}
+                    {% if prediction.predicted_home_score is not None %}
+                        ({{ prediction.predicted_home_score }}-{{ prediction.predicted_away_score }})
+                    {% endif %}
+                    <br>
+                    <small>Confidence: {{ prediction.confidence_level }}% • Made on {{ prediction.created_at|date:"M d, H:i" }}</small>
+                </div>
+                {% endif %}
+
+                <!-- Prediction Form -->
+                <form method="post" id="predictionForm">
+                    {% csrf_token %}
+                    
+                    <!-- Match Result -->
+                    <div class="mb-3">
+                        <label for="{{ form.predicted_result.id_for_label }}" class="form-label">
+                            <i class="fas fa-poll"></i> {{ form.predicted_result.label }}
+                        </label>
+                        {{ form.predicted_result }}
+                        {% if form.predicted_result.help_text %}
+                            <div class="form-text">{{ form.predicted_result.help_text }}</div>
+                        {% endif %}
+                        {% if form.predicted_result.errors %}
+                            <div class="text-danger">{{ form.predicted_result.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Score Prediction -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.predicted_home_score.id_for_label }}" class="form-label">
+                                <i class="fas fa-home"></i> {{ form.predicted_home_score.label }}
+                            </label>
+                            {{ form.predicted_home_score }}
+                            {% if form.predicted_home_score.errors %}
+                                <div class="text-danger">{{ form.predicted_home_score.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.predicted_away_score.id_for_label }}" class="form-label">
+                                <i class="fas fa-plane"></i> {{ form.predicted_away_score.label }}
+                            </label>
+                            {{ form.predicted_away_score }}
+                            {% if form.predicted_away_score.errors %}
+                                <div class="text-danger">{{ form.predicted_away_score.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <small>
+                            <i class="fas fa-lightbulb"></i> 
+                            <strong>Scoring:</strong> Exact score = 5 points, Correct result = 2 points
+                        </small>
+                    </div>
+
+                    <!-- Confidence Level -->
+                    <div class="mb-4">
+                        <label for="{{ form.confidence_level.id_for_label }}" class="form-label">
+                            <i class="fas fa-chart-line"></i> {{ form.confidence_level.label }}
+                        </label>
+                        <div class="d-flex align-items-center">
+                            {{ form.confidence_level }}
+                            <output class="ms-3 badge bg-primary" id="confidenceValue">50</output>
+                        </div>
+                        {% if form.confidence_level.help_text %}
+                            <div class="form-text">{{ form.confidence_level.help_text }}</div>
+                        {% endif %}
+                        {% if form.confidence_level.errors %}
+                            <div class="text-danger">{{ form.confidence_level.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Form Errors -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <!-- Submit Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'prediction_center' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 
+                            {% if is_update %}Update{% else %}Save{% endif %} Prediction
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updatePredictedResult() {
+    const homeScore = document.getElementById('{{ form.predicted_home_score.id_for_label }}').value;
+    const awayScore = document.getElementById('{{ form.predicted_away_score.id_for_label }}').value;
+    const resultSelect = document.getElementById('{{ form.predicted_result.id_for_label }}');
+    
+    if (homeScore !== '' && awayScore !== '') {
+        const home = parseInt(homeScore);
+        const away = parseInt(awayScore);
+        
+        if (home > away) {
+            resultSelect.value = 'H';
+        } else if (away > home) {
+            resultSelect.value = 'A';
+        } else {
+            resultSelect.value = 'D';
+        }
+    }
+}
+
+// Update confidence level display
+document.getElementById('{{ form.confidence_level.id_for_label }}').addEventListener('input', function() {
+    document.getElementById('confidenceValue').textContent = this.value;
+});
+
+// Initialize confidence level display
+document.addEventListener('DOMContentLoaded', function() {
+    const confidenceInput = document.getElementById('{{ form.confidence_level.id_for_label }}');
+    document.getElementById('confidenceValue').textContent = confidenceInput.value;
+});
+</script>
+{% endblock %}

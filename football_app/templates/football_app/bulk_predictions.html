@@ -1,0 +1,235 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}Bulk Predictions - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'prediction_center' %}">Prediction Center</a></li>
+                <li class="breadcrumb-item active">Bulk Predictions</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-list"></i> Bulk Predictions
+            </h1>
+            <a href="{% url 'prediction_center' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Prediction Center
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-filter"></i> Filters</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    {% if filter_form.league.field.queryset %}
+                    <div class="col-md-3">
+                        <label class="form-label">Leagues</label>
+                        {% for choice in filter_form.league %}
+                            <div class="form-check">
+                                {{ choice.tag }}
+                                <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                    {{ choice.choice_label }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.date_from.id_for_label }}" class="form-label">Date From</label>
+                        {{ filter_form.date_from }}
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.date_to.id_for_label }}" class="form-label">Date To</label>
+                        {{ filter_form.date_to }}
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="form-check mt-4">
+                            {{ filter_form.show_only_unpredicted }}
+                            <label class="form-check-label" for="{{ filter_form.show_only_unpredicted.id_for_label }}">
+                                Show only unpredicted matches
+                            </label>
+                        </div>
+                        <div class="mt-2">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-search"></i> Apply Filters
+                            </button>
+                            <a href="{% url 'bulk_predictions' %}" class="btn btn-outline-secondary btn-sm ms-2">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Prediction Form -->
+{% if matches %}
+<form method="post" id="bulkPredictionForm">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-crystal-ball"></i> Make Predictions ({{ matches.count }} matches)</h5>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Save All Predictions
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Instructions:</strong> Select the match result for each game. Optionally, enter specific scores for extra points.
+                        <br>
+                        <small><strong>Scoring:</strong> Exact score = 5 points, Correct result = 2 points</small>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Match</th>
+                                    <th>League</th>
+                                    <th>Date</th>
+                                    <th>Prediction</th>
+                                    <th>Home Score</th>
+                                    <th>Away Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for match in matches %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ match.home_team }}</strong>
+                                        <br>
+                                        <span class="text-muted">vs</span>
+                                        <br>
+                                        <strong>{{ match.away_team }}</strong>
+                                        {% if match.venue %}
+                                            <br>
+                                            <small class="text-muted">{{ match.venue }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ match.league.name }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ match.league.country.name }}</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ match.match_date|date:"M d" }}</small>
+                                        <br>
+                                        <small>{{ match.match_date|date:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        {{ bulk_form|lookup_dict:match.id|lookup:"result" }}
+                                    </td>
+                                    <td>
+                                        {{ bulk_form|lookup_dict:match.id|lookup:"home_score" }}
+                                    </td>
+                                    <td>
+                                        {{ bulk_form|lookup_dict:match.id|lookup:"away_score" }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllHomeWins()">
+                                <i class="fas fa-home"></i> All Home Wins
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllDraws()">
+                                <i class="fas fa-handshake"></i> All Draws
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" onclick="selectAllAwayWins()">
+                                <i class="fas fa-plane"></i> All Away Wins
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearAll()">
+                                <i class="fas fa-eraser"></i> Clear All
+                            </button>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Save All Predictions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Quick Action Scripts -->
+<script>
+function selectAllHomeWins() {
+    document.querySelectorAll('select[name$="_result"]').forEach(select => {
+        select.value = 'H';
+    });
+}
+
+function selectAllDraws() {
+    document.querySelectorAll('select[name$="_result"]').forEach(select => {
+        select.value = 'D';
+    });
+}
+
+function selectAllAwayWins() {
+    document.querySelectorAll('select[name$="_result"]').forEach(select => {
+        select.value = 'A';
+    });
+}
+
+function clearAll() {
+    document.querySelectorAll('select[name$="_result"]').forEach(select => {
+        select.value = '';
+    });
+    document.querySelectorAll('input[name$="_home_score"], input[name$="_away_score"]').forEach(input => {
+        input.value = '';
+    });
+}
+</script>
+
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No matches available for prediction</h5>
+                <p class="text-muted">
+                    Try adjusting your filters or check back later for new matches.
+                </p>
+                <a href="{% url 'prediction_center' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Prediction Center
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Template Filter for Dynamic Form Field Access -->
+{% load custom_filters %}
+{% endblock %}

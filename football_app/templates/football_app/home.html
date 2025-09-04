@@ -1,0 +1,182 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}Home - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-home"></i> Football Stats Dashboard
+            </h1>
+            
+            <div class="text-muted">
+                <i class="fas fa-calendar"></i> {{ current_season.name }}
+                <span class="badge bg-success ms-1">Current Season</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Matches -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Recent Results - {{ current_season.name }}</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_matches_by_league %}
+                    {% for league, matches in recent_matches_by_league.items %}
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2 league-header">
+                            <i class="fas fa-trophy"></i> 
+                            <a href="{% url 'league_detail' league.id %}?season={{ current_season.id }}" class="text-decoration-none text-muted">
+                                {{ league.name }}
+                            </a>
+                            <small class="text-muted ms-1">({{ league.country.name }})</small>
+                        </h6>
+                        <div class="list-group list-group-flush">
+                            {% for match in matches %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong><a href="{% url 'team_detail' match.home_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.home_team }}</a></strong> vs <strong><a href="{% url 'team_detail' match.away_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.away_team }}</a></strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {% if match.round_number %}
+                                                Tour {{ match.round_number }}
+                                                {% if match.venue %} • {{ match.venue }}{% endif %}
+                                            {% else %}
+                                                {% if match.venue %}{{ match.venue }}{% endif %}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="match-result">{{ match.home_score }}-{{ match.away_score }}</span>
+                                        <br>
+                                        <small class="text-muted">{{ match.match_date|date:"M d" }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No recent matches available for {{ current_season.name }}.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Matches -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar"></i> Upcoming Matches - {{ current_season.name }}</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_matches_by_league %}
+                    {% for league, matches in upcoming_matches_by_league.items %}
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2 league-header">
+                            <i class="fas fa-trophy"></i> 
+                            <a href="{% url 'league_detail' league.id %}?season={{ current_season.id }}" class="text-decoration-none text-muted">
+                                {{ league.name }}
+                            </a>
+                            <small class="text-muted ms-1">({{ league.country.name }})</small>
+                        </h6>
+                        <div class="list-group list-group-flush">
+                            {% for match in matches %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong><a href="{% url 'team_detail' match.home_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.home_team }}</a></strong> vs <strong><a href="{% url 'team_detail' match.away_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.away_team }}</a></strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {% if match.round_number %}
+                                                Tour {{ match.round_number }}
+                                                {% if match.venue %} • {{ match.venue }}{% endif %}
+                                            {% else %}
+                                                {% if match.venue %}{{ match.venue }}{% endif %}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-primary">{{ match.match_date|date:"M d, H:i" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No upcoming matches available for {{ current_season.name }}.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> Quick Navigation</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <a href="{% url 'league_list' %}" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-trophy"></i><br>
+                                Leagues
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <a href="{% url 'user_list' %}" class="btn btn-outline-success btn-lg">
+                                <i class="fas fa-users"></i><br>
+                                Players
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <a href="{% url 'group_list' %}" class="btn btn-outline-info btn-lg">
+                                <i class="fas fa-user-friends"></i><br>
+                                Groups
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            {% if user.is_authenticated %}
+                                <a href="{% url 'prediction_center' %}" class="btn btn-outline-warning btn-lg">
+                                    <i class="fas fa-crystal-ball"></i><br>
+                                    Predictions
+                                </a>
+                            {% else %}
+                                <a href="/admin/login/" class="btn btn-outline-warning btn-lg">
+                                    <i class="fas fa-sign-in-alt"></i><br>
+                                    Login
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

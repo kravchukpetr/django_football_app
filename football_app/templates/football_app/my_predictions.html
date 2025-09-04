@@ -1,0 +1,310 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}My Predictions - Football Stats{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'prediction_center' %}">Prediction Center</a></li>
+                <li class="breadcrumb-item active">My Predictions</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-history"></i> My Predictions
+            </h1>
+            <div class="d-flex gap-2">
+                <!-- Season Selector -->
+                {% if available_seasons %}
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-calendar"></i> {{ selected_season.name }}
+                        {% if selected_season.is_current %}
+                            <span class="badge bg-success ms-1">Current</span>
+                        {% endif %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% for season in available_seasons %}
+                        <li>
+                            <a class="dropdown-item {% if season == selected_season %}active{% endif %}" 
+                               href="?season={{ season.id }}{% if request.GET.league %}&league={{ request.GET.league }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                                {{ season.name }}
+                                {% if season.is_current %}
+                                    <span class="badge bg-success ms-1">Current</span>
+                                {% endif %}
+                                {% if season == selected_season %}
+                                    <i class="fas fa-check ms-2"></i>
+                                {% endif %}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <a href="{% url 'prediction_center' %}" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Make New Predictions
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Summary -->
+<div class="row mb-2">
+    <div class="col-12">
+        <h5 class="text-muted">
+            <i class="fas fa-chart-bar"></i> Season Statistics - {{ selected_season.name }}
+            {% if selected_season.is_current %}
+                <span class="badge bg-success ms-2">Current Season</span>
+            {% endif %}
+        </h5>
+    </div>
+</div>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-primary">{{ total_predictions }}</h3>
+            <p class="mb-0">Total Predictions</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-success">{{ correct_predictions }}</h3>
+            <p class="mb-0">Correct Predictions</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-info">{{ accuracy }}%</h3>
+            <p class="mb-0">Accuracy</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stats-card text-center">
+            <h3 class="text-warning">{{ total_points }}</h3>
+            <p class="mb-0">Total Points</p>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-filter"></i> Filters</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    {% if filter_form.league.field.queryset %}
+                    <div class="col-md-3">
+                        <label class="form-label">Leagues</label>
+                        <div style="max-height: 150px; overflow-y: auto;">
+                            {% for choice in filter_form.league %}
+                                <div class="form-check">
+                                    {{ choice.tag }}
+                                    <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                        {{ choice.choice_label }}
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-md-2">
+                        <label class="form-label">Match Status</label>
+                        {% for choice in filter_form.status %}
+                            <div class="form-check">
+                                {{ choice.tag }}
+                                <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                    {{ choice.choice_label }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.date_from.id_for_label }}" class="form-label">Date From</label>
+                        {{ filter_form.date_from }}
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="{{ filter_form.date_to.id_for_label }}" class="form-label">Date To</label>
+                        {{ filter_form.date_to }}
+                    </div>
+                    
+                    <div class="col-md-1">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                            <br>
+                            <a href="{% url 'my_predictions' %}" class="btn btn-outline-secondary btn-sm mt-1">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Predictions List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Prediction History</h5>
+            </div>
+            <div class="card-body">
+                {% if predictions %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Match</th>
+                                <th>League</th>
+                                <th>Date</th>
+                                <th>My Prediction</th>
+                                <th>Actual Result</th>
+                                <th>Points</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prediction in predictions %}
+                            <tr class="{% if prediction.match.status == 'finished' %}{% if prediction.is_correct %}table-success{% elif prediction.points_earned == 0 %}table-danger{% endif %}{% endif %}">
+                                <td>
+                                    <strong>{{ prediction.match.home_team }}</strong>
+                                    <br>
+                                    <span class="text-muted">vs</span>
+                                    <br>
+                                    <strong>{{ prediction.match.away_team }}</strong>
+                                    {% if prediction.match.venue %}
+                                        <br>
+                                        <small class="text-muted">{{ prediction.match.venue }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ prediction.match.league.name }}</span>
+                                    <br>
+                                    <small class="text-muted">{{ prediction.match.league.country.name }}</small>
+                                </td>
+                                <td>
+                                    {{ prediction.match.match_date|date:"M d, Y" }}
+                                    <br>
+                                    <small class="text-muted">{{ prediction.match.match_date|date:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ prediction.get_predicted_result_display }}</strong>
+                                    {% if prediction.predicted_home_score is not None %}
+                                        <br>
+                                        <span class="badge bg-light text-dark">
+                                            {{ prediction.predicted_home_score }}-{{ prediction.predicted_away_score }}
+                                        </span>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">
+                                        Confidence: {{ prediction.confidence_level }}%
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if prediction.match.status == 'finished' %}
+                                        <strong>
+                                            {% if prediction.match.result == 'H' %}
+                                                Home Win
+                                            {% elif prediction.match.result == 'A' %}
+                                                Away Win
+                                            {% elif prediction.match.result == 'D' %}
+                                                Draw
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </strong>
+                                        <br>
+                                        <span class="badge bg-dark">
+                                            {{ prediction.match.home_score }}-{{ prediction.match.away_score }}
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ prediction.match.get_status_display }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prediction.match.status == 'finished' %}
+                                        {% if prediction.points_earned > 0 %}
+                                            <span class="badge bg-success">+{{ prediction.points_earned }}</span>
+                                            {% if prediction.points_earned == 5 %}
+                                                <br><small class="text-success">Exact!</small>
+                                            {% elif prediction.points_earned == 2 %}
+                                                <br><small class="text-success">Correct!</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-danger">0</span>
+                                            <br><small class="text-danger">Wrong</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prediction.match.status == 'scheduled' %}
+                                        <span class="badge bg-primary">Upcoming</span>
+                                    {% elif prediction.match.status == 'live' %}
+                                        <span class="badge bg-warning">Live</span>
+                                    {% elif prediction.match.status == 'finished' %}
+                                        <span class="badge bg-success">Finished</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ prediction.match.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if prediction.match.status == 'scheduled' and prediction.match.match_date > prediction.match.match_date|now %}
+                                        <a href="{% url 'make_prediction' prediction.match.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-crystal-ball fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No predictions found</h5>
+                    <p class="text-muted">
+                        {% if total_predictions == 0 %}
+                            You haven't made any predictions yet.
+                        {% else %}
+                            Try adjusting your filters to see more predictions.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'prediction_center' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Make Your First Prediction
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
