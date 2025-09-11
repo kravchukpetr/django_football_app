@@ -11,8 +11,8 @@
             </h1>
             
             <div class="text-muted">
-                <i class="fas fa-calendar"></i> {{ current_season.name }}
-                <span class="badge bg-success ms-1">Current Season</span>
+                <i class="fas fa-calendar"></i> Current Seasons
+                <span class="badge bg-success ms-1">{{ current_seasons|length }} Active</span>
             </div>
         </div>
     </div>
@@ -23,7 +23,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5><i class="fas fa-clock"></i> Recent Results - {{ current_season.name }}</h5>
+                <h5><i class="fas fa-clock"></i> Recent Results</h5>
             </div>
             <div class="card-body">
                 {% if recent_matches_by_league %}
@@ -31,7 +31,7 @@
                     <div class="mb-3">
                         <h6 class="text-muted mb-2 league-header">
                             <i class="fas fa-trophy"></i> 
-                            <a href="{% url 'league_detail' league.id %}?season={{ current_season.id }}" class="text-decoration-none text-muted">
+                            <a href="{% url 'league_detail' league.id %}" class="text-decoration-none text-muted">
                                 {{ league.name }}
                             </a>
                             <small class="text-muted ms-1">({{ league.country.name }})</small>
@@ -41,7 +41,7 @@
                             <div class="list-group-item">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <strong><a href="{% url 'team_detail' match.home_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.home_team }}</a></strong> vs <strong><a href="{% url 'team_detail' match.away_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.away_team }}</a></strong>
+                                        <strong><a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team }}</a></strong> vs <strong><a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team }}</a></strong>
                                         <br>
                                         <small class="text-muted">
                                             {% if match.round_number %}
@@ -66,7 +66,7 @@
                 {% else %}
                     <div class="text-center py-4">
                         <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No recent matches available for {{ current_season.name }}.</p>
+                        <p class="text-muted">No recent matches available.</p>
                     </div>
                 {% endif %}
             </div>
@@ -77,7 +77,7 @@
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5><i class="fas fa-calendar"></i> Upcoming Matches - {{ current_season.name }}</h5>
+                <h5><i class="fas fa-calendar"></i> Upcoming Matches</h5>
             </div>
             <div class="card-body">
                 {% if upcoming_matches_by_league %}
@@ -85,7 +85,7 @@
                     <div class="mb-3">
                         <h6 class="text-muted mb-2 league-header">
                             <i class="fas fa-trophy"></i> 
-                            <a href="{% url 'league_detail' league.id %}?season={{ current_season.id }}" class="text-decoration-none text-muted">
+                            <a href="{% url 'league_detail' league.id %}" class="text-decoration-none text-muted">
                                 {{ league.name }}
                             </a>
                             <small class="text-muted ms-1">({{ league.country.name }})</small>
@@ -95,7 +95,7 @@
                             <div class="list-group-item">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <strong><a href="{% url 'team_detail' match.home_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.home_team }}</a></strong> vs <strong><a href="{% url 'team_detail' match.away_team.id %}?season={{ current_season.id }}" class="text-decoration-none">{{ match.away_team }}</a></strong>
+                                        <strong><a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team }}</a></strong> vs <strong><a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team }}</a></strong>
                                         <br>
                                         <small class="text-muted">
                                             {% if match.round_number %}
@@ -118,7 +118,7 @@
                 {% else %}
                     <div class="text-center py-4">
                         <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No upcoming matches available for {{ current_season.name }}.</p>
+                        <p class="text-muted">No upcoming matches available.</p>
                     </div>
                 {% endif %}
             </div>

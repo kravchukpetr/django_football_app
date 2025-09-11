@@ -1,30 +1,32 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.db.models import Count, Q, Avg, Sum, F
 from django.utils import timezone
 from datetime import timedelta
 from .models import (
     League, Country, Team, MatchResult, MatchPredict, 
-    UserGroup, GroupMembership, UserProfile, Season
+    UserGroup, GroupMembership, UserProfile, Season, GroupInvitation
 )
-from .forms import MatchPredictionForm
+from .forms import MatchPredictionForm, UserSignInForm, UserSignUpForm, CreateGroupForm, GroupInvitationForm
 
 
 def home(request):
     """Home page with overview of recent matches and predictions"""
-    current_season = Season.get_current_season()
+    # Get current seasons for all leagues
+    current_seasons = Season.objects.filter(is_current=True).select_related('league', 'league__country')
     
     recent_matches = MatchResult.objects.filter(
         status='finished',
-        season=current_season
+        season__in=current_seasons
     ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('-match_date')[:20]
     
     upcoming_matches = MatchResult.objects.filter(
         status='scheduled',
         match_date__gte=timezone.now(),
-        season=current_season
+        season__in=current_seasons
     ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('match_date')[:20]
     
     # Group recent matches by league
@@ -52,7 +54,7 @@ def home(request):
     context = {
         'recent_matches_by_league': recent_matches_by_league,
         'upcoming_matches_by_league': upcoming_matches_by_league,
-        'current_season': current_season,
+        'current_seasons': current_seasons,
     }
     return render(request, 'football_app/home.html', context)
 
@@ -74,22 +76,22 @@ def league_detail(request, league_id):
     """League detail with matches and standings"""
     league = get_object_or_404(League, id=league_id)
     
-    # Get selected season (default to current)
+    # Get selected season (default to current for this league)
     season_id = request.GET.get('season')
     if season_id:
         try:
-            selected_season = Season.objects.get(id=season_id)
+            selected_season = Season.objects.get(id=season_id, league=league)
         except Season.DoesNotExist:
-            selected_season = Season.get_current_season()
+            selected_season = Season.get_current_season(league=league)
     else:
-        selected_season = Season.get_current_season()
+        selected_season = Season.get_current_season(league=league)
     
-    # Get all seasons for the dropdown
+    # Get all seasons for this league
     available_seasons = Season.objects.filter(
-        matches__league=league
-    ).distinct().order_by('-start_year')
+        league=league
+    ).order_by('-start_year')
     
-    # If no seasons have matches for this league, show all active seasons
+    # If no seasons exist for this league, show all active seasons
     if not available_seasons.exists():
         available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
     
@@ -201,22 +203,22 @@ def league_season_results(request, league_id):
     """View league results for a specific season grouped by tour/round"""
     league = get_object_or_404(League, id=league_id)
     
-    # Get selected season (default to current)
+    # Get selected season (default to current for this league)
     season_id = request.GET.get('season')
     if season_id:
         try:
-            selected_season = Season.objects.get(id=season_id)
+            selected_season = Season.objects.get(id=season_id, league=league)
         except Season.DoesNotExist:
-            selected_season = Season.get_current_season()
+            selected_season = Season.get_current_season(league=league)
     else:
-        selected_season = Season.get_current_season()
+        selected_season = Season.get_current_season(league=league)
     
-    # Get all seasons for this league for the dropdown
+    # Get all seasons for this league
     available_seasons = Season.objects.filter(
-        matches__league=league
-    ).distinct().order_by('-start_year')
+        league=league
+    ).order_by('-start_year')
     
-    # If no seasons have matches for this league, show all active seasons
+    # If no seasons exist for this league, show all active seasons
     if not available_seasons.exists():
         available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
     
@@ -267,15 +269,23 @@ def team_detail(request, team_id):
     """Team detail with matches, stats and season selection"""
     team = get_object_or_404(Team, id=team_id)
     
-    # Get selected season (default to current)
+    # Get selected season (default to current for this team's league)
     season_id = request.GET.get('season')
     if season_id:
         try:
             selected_season = Season.objects.get(id=season_id)
         except Season.DoesNotExist:
-            selected_season = Season.get_current_season()
+            # Try to get current season for team's league
+            if team.league:
+                selected_season = Season.get_current_season(league=team.league)
+            else:
+                selected_season = Season.get_current_season()
     else:
-        selected_season = Season.get_current_season()
+        # Try to get current season for team's league
+        if team.league:
+            selected_season = Season.get_current_season(league=team.league)
+        else:
+            selected_season = Season.get_current_season()
     
     # Get all seasons where this team has played
     available_seasons = Season.objects.filter(
@@ -540,8 +550,14 @@ def my_groups(request):
         user=request.user, is_active=True
     ).select_related('group').order_by('-total_points')
     
+    # Get pending invitations
+    pending_invitations = GroupInvitation.objects.filter(
+        invitee=request.user, status='pending'
+    ).select_related('group', 'inviter').order_by('-created_at')
+    
     context = {
         'memberships': memberships,
+        'pending_invitations': pending_invitations,
     }
     return render(request, 'football_app/my_groups.html', context)
 
@@ -563,7 +579,7 @@ def prediction_center(request):
     # Get all available seasons for the dropdown
     available_seasons = Season.objects.filter(
         is_active=True
-    ).order_by('-start_year')
+    ).select_related('league', 'league__country').order_by('-start_year')
     
     # Get user's groups to filter relevant matches
     user_groups = UserGroup.objects.filter(members=request.user)
@@ -753,7 +769,7 @@ def my_predictions(request):
     # Get all available seasons for the dropdown (seasons where user has predictions)
     available_seasons = Season.objects.filter(
         matches__predictions__user=request.user
-    ).distinct().order_by('-start_year')
+    ).select_related('league', 'league__country').distinct().order_by('-start_year')
     
     # Get user's groups for filtering
     user_groups = UserGroup.objects.filter(members=request.user)
@@ -811,3 +827,234 @@ def my_predictions(request):
         'available_seasons': available_seasons,
     }
     return render(request, 'football_app/my_predictions.html', context)
+
+
+# Authentication Views
+def signin_view(request):
+    """User sign in view"""
+    if request.user.is_authenticated:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        form = UserSignInForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            password = form.cleaned_data['password']
+            remember_me = form.cleaned_data.get('remember_me', False)
+            
+            # Try to authenticate with username or email
+            user = authenticate(request, username=username, password=password)
+            if user is None:
+                # Try to find user by email
+                try:
+                    user_obj = User.objects.get(email=username)
+                    user = authenticate(request, username=user_obj.username, password=password)
+                except User.DoesNotExist:
+                    pass
+            
+            if user is not None:
+                login(request, user)
+                if not remember_me:
+                    # Set session to expire when browser closes
+                    request.session.set_expiry(0)
+                messages.success(request, f"Welcome back, {user.first_name or user.username}!")
+                return redirect('home')
+            else:
+                messages.error(request, "Invalid username/email or password.")
+    else:
+        form = UserSignInForm()
+    
+    return render(request, 'football_app/signin.html', {'form': form})
+
+
+def signup_view(request):
+    """User sign up view"""
+    if request.user.is_authenticated:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        form = UserSignUpForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f"Account created successfully! Welcome, {user.first_name}!")
+            return redirect('signin')
+    else:
+        form = UserSignUpForm()
+    
+    return render(request, 'football_app/signup.html', {'form': form})
+
+
+def signout_view(request):
+    """User sign out view"""
+    logout(request)
+    messages.info(request, "You have been signed out successfully.")
+    return redirect('home')
+
+
+@login_required
+def create_group_view(request):
+    """Create a new user group"""
+    if request.method == 'POST':
+        form = CreateGroupForm(request.POST)
+        if form.is_valid():
+            group = form.save(commit=False)
+            group.creator = request.user
+            group.save()
+            form.save_m2m()  # Save many-to-many relationships (leagues)
+            
+            # Add creator as admin member
+            GroupMembership.objects.create(
+                user=request.user,
+                group=group,
+                role='admin'
+            )
+            
+            messages.success(request, f"Group '{group.name}' created successfully!")
+            return redirect('group_detail', group_id=group.id)
+    else:
+        form = CreateGroupForm()
+    
+    return render(request, 'football_app/create_group.html', {'form': form})
+
+
+def join_group_view(request, join_code):
+    """Join a group using join code"""
+    if not request.user.is_authenticated:
+        messages.error(request, "You must be logged in to join a group.")
+        return redirect('signin')
+    
+    try:
+        group = UserGroup.objects.get(join_code=join_code)
+    except UserGroup.DoesNotExist:
+        messages.error(request, "Invalid join code. The group may not exist.")
+        return redirect('group_list')
+    
+    # Check if user is already a member
+    if GroupMembership.objects.filter(user=request.user, group=group).exists():
+        messages.info(request, f"You are already a member of '{group.name}'.")
+        return redirect('group_detail', group_id=group.id)
+    
+    # Check if group is full
+    if group.member_count >= group.max_members:
+        messages.error(request, f"Group '{group.name}' is full. It has reached its maximum capacity of {group.max_members} members.")
+        return redirect('group_detail', group_id=group.id)
+    
+    # Check if group is private and user is not invited
+    if group.is_private:
+        # Check if user has a pending invitation
+        from .models import GroupInvitation
+        if not GroupInvitation.objects.filter(
+            group=group, 
+            invitee=request.user, 
+            status='pending'
+        ).exists():
+            messages.error(request, f"Group '{group.name}' is private. You need an invitation to join.")
+            return redirect('group_detail', group_id=group.id)
+    
+    # Join the group
+    GroupMembership.objects.create(
+        user=request.user,
+        group=group,
+        role='member'
+    )
+    
+    messages.success(request, f"Successfully joined '{group.name}'!")
+    return redirect('group_detail', group_id=group.id)
+
+
+@login_required
+def send_invitation_view(request, group_id):
+    """Send an invitation to join a group"""
+    group = get_object_or_404(UserGroup, id=group_id)
+    
+    # Check if user has permission to send invitations
+    try:
+        membership = GroupMembership.objects.get(user=request.user, group=group)
+        if membership.role not in ['admin', 'moderator']:
+            messages.error(request, "You don't have permission to send invitations to this group.")
+            return redirect('group_detail', group_id=group.id)
+    except GroupMembership.DoesNotExist:
+        messages.error(request, "You are not a member of this group.")
+        return redirect('group_detail', group_id=group.id)
+    
+    if request.method == 'POST':
+        form = GroupInvitationForm(request.POST)
+        if form.is_valid():
+            invitation = form.save(commit=False)
+            invitation.group = group
+            invitation.inviter = request.user
+            invitation.save()
+            
+            messages.success(request, f"Invitation sent to {invitation.invitee.username}!")
+            return redirect('group_detail', group_id=group.id)
+    else:
+        form = GroupInvitationForm()
+    
+    return render(request, 'football_app/send_invitation.html', {
+        'form': form,
+        'group': group
+    })
+
+
+@login_required
+def accept_invitation_view(request, invitation_id):
+    """Accept a group invitation"""
+    invitation = get_object_or_404(GroupInvitation, id=invitation_id, invitee=request.user)
+    
+    if invitation.status != 'pending':
+        messages.error(request, "This invitation is no longer valid.")
+        return redirect('my_groups')
+    
+    if invitation.is_expired:
+        invitation.status = 'expired'
+        invitation.save()
+        messages.error(request, "This invitation has expired.")
+        return redirect('my_groups')
+    
+    success, message = invitation.accept()
+    if success:
+        messages.success(request, f"Successfully joined '{invitation.group.name}'!")
+    else:
+        messages.error(request, message)
+    
+    return redirect('group_detail', group_id=invitation.group.id)
+
+
+@login_required
+def decline_invitation_view(request, invitation_id):
+    """Decline a group invitation"""
+    invitation = get_object_or_404(GroupInvitation, id=invitation_id, invitee=request.user)
+    
+    if invitation.status != 'pending':
+        messages.error(request, "This invitation is no longer valid.")
+        return redirect('my_groups')
+    
+    success, message = invitation.decline()
+    if success:
+        messages.info(request, f"Invitation to '{invitation.group.name}' declined.")
+    else:
+        messages.error(request, message)
+    
+    return redirect('my_groups')
+
+
+@login_required
+def my_invitations_view(request):
+    """View user's pending invitations"""
+    invitations = GroupInvitation.objects.filter(
+        invitee=request.user,
+        status='pending'
+    ).select_related('group', 'inviter', 'group__creator').order_by('-created_at')
+    
+    # Filter out expired invitations
+    valid_invitations = []
+    for invitation in invitations:
+        if not invitation.is_expired:
+            valid_invitations.append(invitation)
+        else:
+            invitation.status = 'expired'
+            invitation.save()
+    
+    return render(request, 'football_app/my_invitations.html', {
+        'invitations': valid_invitations
+    })

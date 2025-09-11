@@ -3,62 +3,10 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import datetime
 
-
-class Season(models.Model):
-    """Model representing a football season"""
-    name = models.CharField(max_length=20, unique=True, help_text="e.g., 2023/2024")
-    start_year = models.PositiveIntegerField(help_text="Starting year of the season")
-    end_year = models.PositiveIntegerField(help_text="Ending year of the season")
-    start_date = models.DateField(help_text="Season start date")
-    end_date = models.DateField(help_text="Season end date")
-    is_current = models.BooleanField(default=False, help_text="Is this the current active season?")
-    is_active = models.BooleanField(default=True, help_text="Is this season available for predictions?")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-start_year']
-        unique_together = ['start_year', 'end_year']
-
-    def __str__(self):
-        return self.name
-
-    def save(self, *args, **kwargs):
-        # Ensure only one season can be current at a time
-        if self.is_current:
-            Season.objects.filter(is_current=True).update(is_current=False)
-        super().save(*args, **kwargs)
-
-    @classmethod
-    def get_current_season(cls):
-        """Get the current active season"""
-        try:
-            return cls.objects.get(is_current=True)
-        except cls.DoesNotExist:
-            # If no current season is set, return the most recent one
-            return cls.objects.filter(is_active=True).first()
-
-    @property
-    def is_finished(self):
-        """Check if the season has ended"""
-        return timezone.now().date() > self.end_date
-
-    @property
-    def is_upcoming(self):
-        """Check if the season hasn't started yet"""
-        return timezone.now().date() < self.start_date
-
-    @property
-    def is_ongoing(self):
-        """Check if the season is currently ongoing"""
-        today = timezone.now().date()
-        return self.start_date <= today <= self.end_date
-
-
 class Country(models.Model):
     """Model representing a country"""
     name = models.CharField(max_length=100, unique=True)
-    code = models.CharField(max_length=3, unique=True, help_text="ISO 3-letter country code")
+    code = models.CharField(max_length=10, blank=True, null=True, help_text="ISO 2-letter country code")
     flag_image = models.URLField(blank=True, null=True, help_text="URL to country flag image")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -75,7 +23,9 @@ class League(models.Model):
     """Model representing a football league"""
     name = models.CharField(max_length=150)
     country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='leagues')
-    level = models.PositiveIntegerField(default=1, help_text="League level (1 = top tier)")
+    level = models.PositiveIntegerField(default=1, blank=True, null=True, help_text="League level (1 = top tier)")
+    type = models.CharField(max_length=150, blank=True, null=True)
+    external_id = models.PositiveIntegerField(blank=True, null=True)
     logo_image = models.URLField(blank=True, null=True, help_text="URL to league logo")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -87,6 +37,79 @@ class League(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.country.name})"
+
+
+class Season(models.Model):
+    """Model representing a football season"""
+    name = models.CharField(max_length=20, help_text="e.g., 2023/2024")
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='seasons', blank=True, null=True)
+    start_year = models.PositiveIntegerField(help_text="Starting year of the season")
+    end_year = models.PositiveIntegerField(help_text="Ending year of the season")
+    start_date = models.DateField(help_text="Season start date")
+    end_date = models.DateField(help_text="Season end date")
+    is_current = models.BooleanField(default=False, help_text="Is this the current active season?")
+    is_active = models.BooleanField(default=True, help_text="Is this season available for predictions?")
+    
+    # Coverage attributes
+    coverage_fixtures_events = models.BooleanField(default=False, help_text="Coverage for fixtures events")
+    coverage_fixtures_lineups = models.BooleanField(default=False, help_text="Coverage for fixtures lineups")
+    coverage_fixtures_statistics_fixtures = models.BooleanField(default=False, help_text="Coverage for fixtures statistics")
+    coverage_fixtures_statistics_players = models.BooleanField(default=False, help_text="Coverage for player statistics")
+    coverage_standings = models.BooleanField(default=False, help_text="Coverage for standings")
+    coverage_players = models.BooleanField(default=False, help_text="Coverage for players")
+    coverage_top_scorers = models.BooleanField(default=False, help_text="Coverage for top scorers")
+    coverage_top_assists = models.BooleanField(default=False, help_text="Coverage for top assists")
+    coverage_top_cards = models.BooleanField(default=False, help_text="Coverage for top cards")
+    coverage_injuries = models.BooleanField(default=False, help_text="Coverage for injuries")
+    coverage_predictions = models.BooleanField(default=False, help_text="Coverage for predictions")
+    coverage_odds = models.BooleanField(default=False, help_text="Coverage for odds")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-start_year']
+        unique_together = ['league', 'start_year', 'end_year']
+
+    def __str__(self):
+        return f"{self.name} ({self.league.name})"
+
+    def save(self, *args, **kwargs):
+        # Ensure only one season can be current at a time
+        if self.is_current:
+            Season.objects.filter(is_current=True).update(is_current=False)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_current_season(cls, league=None):
+        """Get the current active season for a specific league or any league"""
+        try:
+            if league:
+                return cls.objects.get(is_current=True, league=league)
+            else:
+                return cls.objects.get(is_current=True)
+        except cls.DoesNotExist:
+            # If no current season is set, return the most recent one
+            if league:
+                return cls.objects.filter(is_active=True, league=league).first()
+            else:
+                return cls.objects.filter(is_active=True).first()
+
+    @property
+    def is_finished(self):
+        """Check if the season has ended"""
+        return timezone.now().date() > self.end_date
+
+    @property
+    def is_upcoming(self):
+        """Check if the season hasn't started yet"""
+        return timezone.now().date() < self.start_date
+
+    @property
+    def is_ongoing(self):
+        """Check if the season is currently ongoing"""
+        today = timezone.now().date()
+        return self.start_date <= today <= self.end_date
 
 
 class Team(models.Model):
@@ -250,7 +273,7 @@ class UserGroup(models.Model):
         if not self.join_code:
             import secrets
             import string
-            self.join_code = ''.join(secrets.choices(string.ascii_uppercase + string.digits, k=8))
+            self.join_code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(8))
         super().save(*args, **kwargs)
 
     @property
@@ -403,6 +426,10 @@ class GroupInvitation(models.Model):
 class UserProfile(models.Model):
     """Extended user profile for football predictions"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    first_name = models.CharField(max_length=50, blank=True)
+    last_name = models.CharField(max_length=50, blank=True)
+    birthday = models.DateField(blank=True, null=True)
+    age = models.PositiveIntegerField(blank=True, null=True)
     total_points = models.PositiveIntegerField(default=0)
     total_predictions = models.PositiveIntegerField(default=0)
     correct_predictions = models.PositiveIntegerField(default=0)
@@ -414,6 +441,25 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s Profile"
+
+    def save(self, *args, **kwargs):
+        """Override save to automatically calculate age from birthday"""
+        if self.birthday and not self.age:
+            from datetime import date
+            today = date.today()
+            self.age = today.year - self.birthday.year - ((today.month, today.day) < (self.birthday.month, self.birthday.day))
+        super().save(*args, **kwargs)
+
+    @property
+    def full_name(self):
+        """Return the full name of the user"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        elif self.last_name:
+            return self.last_name
+        return self.user.username
 
     @property
     def accuracy_percentage(self):

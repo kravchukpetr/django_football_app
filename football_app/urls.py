@@ -5,6 +5,11 @@ urlpatterns = [
     # Home
     path('', views.home, name='home'),
     
+    # Authentication URLs
+    path('signin/', views.signin_view, name='signin'),
+    path('signup/', views.signup_view, name='signup'),
+    path('signout/', views.signout_view, name='signout'),
+    
     # League URLs
     path('leagues/', views.league_list, name='league_list'),
     path('leagues/<int:league_id>/', views.league_detail, name='league_detail'),
@@ -21,7 +26,15 @@ urlpatterns = [
     # Group URLs
     path('groups/', views.group_list, name='group_list'),
     path('groups/<int:group_id>/', views.group_detail, name='group_detail'),
+    path('groups/create/', views.create_group_view, name='create_group'),
+    path('join/<str:join_code>/', views.join_group_view, name='join_group'),
     path('my-groups/', views.my_groups, name='my_groups'),
+    
+    # Invitation URLs
+    path('groups/<int:group_id>/invite/', views.send_invitation_view, name='send_invitation'),
+    path('invitations/', views.my_invitations_view, name='my_invitations'),
+    path('invitations/<int:invitation_id>/accept/', views.accept_invitation_view, name='accept_invitation'),
+    path('invitations/<int:invitation_id>/decline/', views.decline_invitation_view, name='decline_invitation'),
     
     # Prediction URLs
     path('predictions/', views.prediction_center, name='prediction_center'),

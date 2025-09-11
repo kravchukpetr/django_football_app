@@ -1,8 +1,9 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import MatchPredict, MatchResult, UserGroup
+from .models import MatchPredict, MatchResult, UserGroup, UserProfile, League, GroupInvitation, GroupMembership
 
 
 class MatchPredictionForm(forms.ModelForm):
@@ -280,3 +281,252 @@ class PredictionFilterForm(forms.Form):
         else:
             from .models import League
             self.fields['league'].queryset = League.objects.all()
+
+
+class UserSignUpForm(UserCreationForm):
+    """Form for user registration with profile information"""
+    
+    first_name = forms.CharField(
+        max_length=50,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'First Name'
+        })
+    )
+    
+    last_name = forms.CharField(
+        max_length=50,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Last Name'
+        })
+    )
+    
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Email Address'
+        })
+    )
+    
+    birthday = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date'
+        })
+    )
+    
+    class Meta:
+        model = User
+        fields = ('username', 'first_name', 'last_name', 'email', 'password1', 'password2', 'birthday')
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Username'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Update password field widgets
+        self.fields['password1'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Password'
+        })
+        self.fields['password2'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Confirm Password'
+        })
+    
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise ValidationError("A user with this email already exists.")
+        return email
+    
+    def clean_birthday(self):
+        birthday = self.cleaned_data.get('birthday')
+        if birthday:
+            from datetime import date
+            today = date.today()
+            age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+            if age < 13:
+                raise ValidationError("You must be at least 13 years old to register.")
+            if age > 120:
+                raise ValidationError("Please enter a valid birth date.")
+        return birthday
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        
+        if commit:
+            user.save()
+            # Create user profile
+            UserProfile.objects.create(
+                user=user,
+                first_name=self.cleaned_data['first_name'],
+                last_name=self.cleaned_data['last_name'],
+                birthday=self.cleaned_data['birthday']
+            )
+        return user
+
+
+class UserSignInForm(forms.Form):
+    """Form for user sign in"""
+    
+    username = forms.CharField(
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Username or Email',
+            'autofocus': True
+        })
+    )
+    
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Password'
+        })
+    )
+    
+    remember_me = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        })
+    )
+
+
+class CreateGroupForm(forms.ModelForm):
+    """Form for creating a new user group"""
+    
+    class Meta:
+        model = UserGroup
+        fields = ['name', 'description', 'leagues', 'is_private', 'max_members']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter group name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Describe your group (optional)'
+            }),
+            'leagues': forms.CheckboxSelectMultiple(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_private': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'max_members': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '2',
+                'max': '100',
+                'value': '50'
+            })
+        }
+        labels = {
+            'name': 'Group Name',
+            'description': 'Description',
+            'leagues': 'Leagues to Predict',
+            'is_private': 'Private Group',
+            'max_members': 'Maximum Members'
+        }
+        help_texts = {
+            'name': 'Choose a unique name for your group',
+            'description': 'Optional description of your group',
+            'leagues': 'Select which leagues this group will predict',
+            'is_private': 'Private groups require invitation to join',
+            'max_members': 'Maximum number of members allowed (2-100)'
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show active leagues
+        self.fields['leagues'].queryset = League.objects.filter(is_active=True).order_by('country__name', 'name')
+    
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if name and UserGroup.objects.filter(name=name).exists():
+            raise ValidationError("A group with this name already exists.")
+        return name
+    
+    def clean_max_members(self):
+        max_members = self.cleaned_data.get('max_members')
+        if max_members and (max_members < 2 or max_members > 100):
+            raise ValidationError("Maximum members must be between 2 and 100.")
+        return max_members
+
+
+class GroupInvitationForm(forms.ModelForm):
+    """Form for sending group invitations"""
+    
+    invitee_username = forms.CharField(
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter username or email'
+        }),
+        help_text="Enter the username or email of the person you want to invite"
+    )
+    
+    class Meta:
+        model = GroupInvitation
+        fields = ['message']
+        widgets = {
+            'message': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Optional message to include with the invitation'
+            })
+        }
+        labels = {
+            'message': 'Invitation Message'
+        }
+        help_texts = {
+            'message': 'Optional personal message to include with the invitation'
+        }
+    
+    def clean_invitee_username(self):
+        invitee_username = self.cleaned_data.get('invitee_username')
+        if invitee_username:
+            # Try to find user by username or email
+            try:
+                user = User.objects.get(username=invitee_username)
+            except User.DoesNotExist:
+                try:
+                    user = User.objects.get(email=invitee_username)
+                except User.DoesNotExist:
+                    raise ValidationError("User not found. Please check the username or email.")
+            
+            # Check if user is already a member
+            group = self.instance.group if self.instance.pk else None
+            if group and GroupMembership.objects.filter(user=user, group=group).exists():
+                raise ValidationError("This user is already a member of the group.")
+            
+            # Check if there's already a pending invitation
+            if group and GroupInvitation.objects.filter(
+                group=group, 
+                invitee=user, 
+                status='pending'
+            ).exists():
+                raise ValidationError("This user already has a pending invitation to this group.")
+            
+            return user
+        return None
+    
+    def save(self, commit=True):
+        invitation = super().save(commit=False)
+        invitation.invitee = self.cleaned_data['invitee_username']
+        if commit:
+            invitation.save()
+        return invitation

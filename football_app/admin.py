@@ -23,6 +23,12 @@ class TeamInline(admin.TabularInline):
     fields = ('name', 'short_name', 'is_active')
 
 
+class SeasonInline(admin.TabularInline):
+    model = Season
+    extra = 1
+    fields = ('name', 'start_year', 'end_year', 'is_current', 'is_active')
+
+
 class GroupMembershipInline(admin.TabularInline):
     model = GroupMembership
     extra = 1
@@ -40,21 +46,31 @@ class MatchPredictInline(admin.TabularInline):
 # Main admin classes
 @admin.register(Season)
 class SeasonAdmin(admin.ModelAdmin):
-    list_display = ('name', 'start_year', 'end_year', 'start_date', 'end_date', 'is_current', 'is_active', 'match_count', 'created_at')
-    list_filter = ('is_current', 'is_active', 'start_year')
-    search_fields = ('name', 'start_year', 'end_year')
+    list_display = ('name', 'league', 'start_year', 'end_year', 'start_date', 'end_date', 'is_current', 'is_active', 'match_count', 'created_at')
+    list_filter = ('league', 'is_current', 'is_active', 'start_year')
+    search_fields = ('name', 'start_year', 'end_year', 'league__name')
     list_editable = ('is_current', 'is_active')
     date_hierarchy = 'start_date'
     
     fieldsets = (
         ('Season Information', {
-            'fields': ('name', 'start_year', 'end_year')
+            'fields': ('name', 'league', 'start_year', 'end_year')
         }),
         ('Dates', {
             'fields': ('start_date', 'end_date')
         }),
         ('Status', {
             'fields': ('is_current', 'is_active')
+        }),
+        ('Coverage', {
+            'fields': (
+                'coverage_fixtures_events', 'coverage_fixtures_lineups', 
+                'coverage_fixtures_statistics_fixtures', 'coverage_fixtures_statistics_players',
+                'coverage_standings', 'coverage_players', 'coverage_top_scorers',
+                'coverage_top_assists', 'coverage_top_cards', 'coverage_injuries',
+                'coverage_predictions', 'coverage_odds'
+            ),
+            'classes': ('collapse',)
         }),
     )
     
@@ -69,16 +85,24 @@ class SeasonAdmin(admin.ModelAdmin):
     actions = ['set_as_current_season']
     
     def set_as_current_season(self, request, queryset):
-        """Set selected season as current (only one allowed)"""
+        """Set selected season as current (only one per league allowed)"""
         if queryset.count() != 1:
             self.message_user(request, 'Please select exactly one season to set as current.', level='ERROR')
             return
         
         season = queryset.first()
-        Season.objects.filter(is_current=True).update(is_current=False)
-        season.is_current = True
-        season.save()
-        self.message_user(request, f'Set {season.name} as the current season.')
+        if season.league:
+            # Set as current for this league only
+            Season.objects.filter(league=season.league, is_current=True).update(is_current=False)
+            season.is_current = True
+            season.save()
+            self.message_user(request, f'Set {season.name} as the current season for {season.league.name}.')
+        else:
+            # Set as current globally (for seasons without league)
+            Season.objects.filter(is_current=True).update(is_current=False)
+            season.is_current = True
+            season.save()
+            self.message_user(request, f'Set {season.name} as the current season.')
     set_as_current_season.short_description = 'Set as current season'
 
 
@@ -100,15 +124,19 @@ class CountryAdmin(admin.ModelAdmin):
 
 @admin.register(League)
 class LeagueAdmin(admin.ModelAdmin):
-    list_display = ('name', 'country', 'level', 'team_count', 'match_count', 'is_active', 'created_at')
+    list_display = ('name', 'country', 'level', 'team_count', 'season_count', 'match_count', 'is_active', 'created_at')
     list_filter = ('country', 'level', 'is_active', 'created_at')
     search_fields = ('name', 'country__name')
     list_editable = ('is_active',)
-    inlines = [TeamInline]
+    inlines = [SeasonInline, TeamInline]
     
     def team_count(self, obj):
         return obj.teams.count()
     team_count.short_description = 'Teams'
+    
+    def season_count(self, obj):
+        return obj.seasons.count()
+    season_count.short_description = 'Seasons'
     
     def match_count(self, obj):
         return obj.matches.count()

@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  db:
+    build: .
+    container_name: football_postgres
+    environment:
+      POSTGRES_DB: football_stats
+      POSTGRES_USER: football_user
+      POSTGRES_PASSWORD: football_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

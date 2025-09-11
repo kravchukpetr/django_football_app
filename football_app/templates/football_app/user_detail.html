@@ -1,6 +1,6 @@
 {% extends 'football_app/base.html' %}
 
-{% block title %}{{ profile_user.username }} - Football Stats{% endblock %}
+{% block title %}{% if profile.full_name %}{{ profile.full_name }} ({{ profile_user.username }}){% else %}{{ profile_user.username }}{% endif %} - Football Stats{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -15,14 +15,83 @@
                     {{ profile_user.username|first|upper }}
                 </div>
             {% endif %}
-            {{ profile_user.username }}
-            {% if profile_user.first_name or profile_user.last_name %}
-                <small class="text-muted">({{ profile_user.first_name }} {{ profile_user.last_name }})</small>
+            {% if profile.full_name %}
+                {{ profile.full_name }}
+                <small class="text-muted">(@{{ profile_user.username }})</small>
+            {% else %}
+                {{ profile_user.username }}
             {% endif %}
         </h1>
-        {% if profile.bio %}
-            <p class="lead">{{ profile.bio }}</p>
-        {% endif %}
+        
+        <!-- User Profile Information -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                {% if profile.bio %}
+                    <p class="lead">{{ profile.bio }}</p>
+                {% endif %}
+                
+                <!-- Personal Information -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-user"></i> Personal Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% if profile.first_name %}
+                            <div class="col-md-6 mb-2">
+                                <strong>First Name:</strong> {{ profile.first_name }}
+                            </div>
+                            {% endif %}
+                            {% if profile.last_name %}
+                            <div class="col-md-6 mb-2">
+                                <strong>Last Name:</strong> {{ profile.last_name }}
+                            </div>
+                            {% endif %}
+                            {% if profile.birthday %}
+                            <div class="col-md-6 mb-2">
+                                <strong>Birthday:</strong> {{ profile.birthday|date:"F d, Y" }}
+                            </div>
+                            {% endif %}
+                            {% if profile.age %}
+                            <div class="col-md-6 mb-2">
+                                <strong>Age:</strong> {{ profile.age }} years old
+                            </div>
+                            {% endif %}
+                            {% if profile_user.email %}
+                            <div class="col-md-6 mb-2">
+                                <strong>Email:</strong> {{ profile_user.email }}
+                            </div>
+                            {% endif %}
+                            <div class="col-md-6 mb-2">
+                                <strong>Member Since:</strong> {{ profile_user.date_joined|date:"F d, Y" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Favorite Team -->
+            <div class="col-md-4">
+                {% if profile.favorite_team %}
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-heart"></i> Favorite Team</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        {% if profile.favorite_team.logo_image %}
+                            <img src="{{ profile.favorite_team.logo_image }}" alt="{{ profile.favorite_team.name }}" 
+                                 style="width: 60px; height: 60px; object-fit: contain;" class="mb-2">
+                        {% endif %}
+                        <h6>{{ profile.favorite_team.name }}</h6>
+                        <small class="text-muted">{{ profile.favorite_team.country.name }}</small>
+                        {% if profile.favorite_team.league %}
+                            <br><small class="text-muted">{{ profile.favorite_team.league.name }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
@@ -58,8 +127,13 @@
 <div class="row">
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header">
-                <h5><i class="fas fa-user-friends"></i> Group Memberships</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-user-friends"></i> Group Memberships</h5>
+                {% if user.is_authenticated and user.id == profile_user.id %}
+                    <a href="{% url 'create_group' %}" class="btn btn-success btn-sm">
+                        <i class="fas fa-plus"></i> Create Group
+                    </a>
+                {% endif %}
             </div>
             <div class="card-body">
                 {% if group_memberships %}
@@ -89,7 +163,14 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <p class="text-muted">No group memberships yet.</p>
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-3">No group memberships yet.</p>
+                        {% if user.is_authenticated and user.id == profile_user.id %}
+                            <a href="{% url 'create_group' %}" class="btn btn-success">
+                                <i class="fas fa-plus"></i> Create Your First Group
+                            </a>
+                        {% endif %}
+                    </div>
                 {% endif %}
             </div>
         </div>

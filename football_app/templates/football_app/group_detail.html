@@ -3,6 +3,17 @@
 {% block title %}{{ group.name }} - Football Stats{% endblock %}
 
 {% block content %}
+<!-- Success Messages -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -25,10 +36,28 @@
             {% if not is_member and user.is_authenticated %}
                 <div>
                     {% if not group.is_private %}
-                        <button class="btn btn-success">
-                            <i class="fas fa-plus"></i> Join Group
-                        </button>
+                        {% if group.member_count < group.max_members %}
+                            <a href="{% url 'join_group' group.join_code %}" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus"></i> Join This Group
+                            </a>
+                            <p class="text-muted mt-2 mb-0">Click to join and start competing!</p>
+                        {% else %}
+                            <button class="btn btn-secondary btn-lg" disabled>
+                                <i class="fas fa-ban"></i> Group Full
+                            </button>
+                            <p class="text-muted mt-2 mb-0">This group has reached its maximum capacity.</p>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary">Private Group</span>
+                        <p class="text-muted mt-2 mb-0">This group requires an invitation to join.</p>
                     {% endif %}
+                </div>
+            {% elif not user.is_authenticated %}
+                <div>
+                    <a href="{% url 'signin' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-sign-in-alt"></i> Sign In to Join
+                    </a>
+                    <p class="text-muted mt-2 mb-0">You need to be signed in to join this group.</p>
                 </div>
             {% endif %}
         </div>
@@ -49,19 +78,126 @@
             <p class="mb-0">Leagues</p>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="stats-card text-center">
-            <h3 class="text-info">{{ group.join_code }}</h3>
-            <p class="mb-0">Join Code</p>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stats-card text-center">
-            <h3 class="text-warning">{{ group.max_members }}</h3>
-            <p class="mb-0">Max Members</p>
+</div>
+
+<!-- Join Group Call-to-Action (for non-members) -->
+{% if not is_member %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white text-center">
+                <h4 class="mb-0"><i class="fas fa-users"></i> Join This Group</h4>
+            </div>
+            <div class="card-body text-center">
+                {% if user.is_authenticated %}
+                    {% if not group.is_private %}
+                        <h5 class="mb-3">Ready to compete with {{ group.member_count }} other players?</h5>
+                        <p class="lead mb-4">Join this group to start making predictions and competing for the top spot!</p>
+                        {% if group.member_count < group.max_members %}
+                            <p class="text-muted mb-3">
+                                <i class="fas fa-users"></i> 
+                                {{ group.member_count }}/{{ group.max_members }} members 
+                                <span class="badge bg-success ms-2">Open</span>
+                            </p>
+                        {% else %}
+                            <p class="text-muted mb-3">
+                                <i class="fas fa-users"></i> 
+                                {{ group.member_count }}/{{ group.max_members }} members 
+                                <span class="badge bg-warning ms-2">Full</span>
+                            </p>
+                        {% endif %}
+                        {% if group.member_count < group.max_members %}
+                            <a href="{% url 'join_group' group.join_code %}" class="btn btn-success btn-lg me-3">
+                                <i class="fas fa-plus"></i> Join Group Now
+                            </a>
+                        {% else %}
+                            <button class="btn btn-secondary btn-lg me-3" disabled>
+                                <i class="fas fa-ban"></i> Group Full
+                            </button>
+                        {% endif %}
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> 
+                                You'll be able to make predictions for {{ leagues.count }} league{{ leagues.count|pluralize }} and compete on the leaderboard.
+                            </small>
+                        </div>
+                    {% else %}
+                        <h5 class="mb-3">This is a Private Group</h5>
+                        <p class="lead mb-4">You need an invitation from the group admin to join this group.</p>
+                        <span class="badge bg-secondary fs-6">Private Group</span>
+                    {% endif %}
+                {% else %}
+                    <h5 class="mb-3">Join the Competition!</h5>
+                    <p class="lead mb-4">Sign in to join this group and start making predictions with {{ group.member_count }} other players.</p>
+                    <a href="{% url 'signin' %}" class="btn btn-primary btn-lg me-3">
+                        <i class="fas fa-sign-in-alt"></i> Sign In to Join
+                    </a>
+                    <a href="{% url 'signup' %}" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </a>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            Don't have an account? Create one for free to join this group.
+                        </small>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
+{% endif %}
+
+<!-- Share Group Section (for members) -->
+{% if is_member %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-share-alt"></i> Share This Group</h5>
+                       {% if user_membership and user_membership.role == 'admin' or user_membership.role == 'moderator' %}
+                    <a href="{% url 'send_invitation' group.id %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-user-plus"></i> Invite Members
+                    </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Invite friends to join your group by sharing this link:</p>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="mainShareLink" 
+                                   value="{{ request.scheme }}://{{ request.get_host }}{% url 'join_group' group.join_code %}" 
+                                   readonly>
+                            <button class="btn btn-info" type="button" onclick="copyMainShareLink()">
+                                <i class="fas fa-copy"></i> Copy Link
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-primary btn-sm" onclick="shareOnSocial('facebook')">
+                                <i class="fab fa-facebook"></i> Facebook
+                            </button>
+                            <button class="btn btn-outline-info btn-sm" onclick="shareOnSocial('twitter')">
+                                <i class="fab fa-twitter"></i> Twitter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    <i class="fas fa-info-circle"></i> 
+                    {% if group.is_private %}
+                        This is a private group. Only invited users can join.
+                    {% else %}
+                        Anyone with this link can join your group.
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Leaderboard and Leagues -->
 <div class="row">
@@ -199,4 +335,88 @@
         </div>
     </div>
 </div>
+
+<script>
+function copyShareLink() {
+    const shareLinkInput = document.getElementById('shareLink');
+    shareLinkInput.select();
+    shareLinkInput.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        
+        // Show success feedback
+        const button = event.target.closest('button');
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check text-success"></i>';
+        button.classList.add('btn-success');
+        button.classList.remove('btn-outline-secondary');
+        
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }, 2000);
+        
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy link. Please copy manually.');
+    }
+}
+
+function copyMainShareLink() {
+    const shareLinkInput = document.getElementById('mainShareLink');
+    shareLinkInput.select();
+    shareLinkInput.setSelectionRange(0, 99999);
+    
+    try {
+        document.execCommand('copy');
+        
+        // Show success feedback
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        button.classList.add('btn-success');
+        button.classList.remove('btn-info');
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-info');
+        }, 2000);
+        
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy link. Please copy manually.');
+    }
+}
+
+function shareOnSocial(platform) {
+    const shareLink = document.getElementById('mainShareLink').value;
+    const groupName = '{{ group.name }}';
+    const text = `Join my football prediction group "${groupName}" on Football Stats!`;
+    
+    let url = '';
+    if (platform === 'facebook') {
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareLink)}`;
+    } else if (platform === 'twitter') {
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareLink)}`;
+    }
+    
+    if (url) {
+        window.open(url, '_blank', 'width=600,height=400');
+    }
+}
+
+// Also allow clicking on the input to copy
+document.getElementById('shareLink').addEventListener('click', function() {
+    this.select();
+    copyShareLink();
+});
+
+document.getElementById('mainShareLink').addEventListener('click', function() {
+    this.select();
+    copyMainShareLink();
+});
+</script>
 {% endblock %}

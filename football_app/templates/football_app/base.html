@@ -63,11 +63,22 @@
                             <a class="nav-link" href="{% url 'my_groups' %}">My Groups</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="{% url 'my_invitations' %}">
+                                <i class="fas fa-envelope"></i> Invitations
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="/admin/">Admin</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'signout' %}">Sign Out</a>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="/admin/login/">Login</a>
+                            <a class="nav-link" href="{% url 'signin' %}">Sign In</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'signup' %}">Sign Up</a>
                         </li>
                     {% endif %}
                 </ul>

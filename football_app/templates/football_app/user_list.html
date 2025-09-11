@@ -54,9 +54,14 @@
                                             </div>
                                         {% endif %}
                                         <div>
-                                            <strong>{{ user.username }}</strong>
-                                            {% if user.first_name or user.last_name %}
-                                                <br><small class="text-muted">{{ user.first_name }} {{ user.last_name }}</small>
+                                            {% if user.profile.full_name %}
+                                                <strong>{{ user.profile.full_name }}</strong>
+                                                <br><small class="text-muted">@{{ user.username }}</small>
+                                            {% else %}
+                                                <strong>{{ user.username }}</strong>
+                                            {% endif %}
+                                            {% if user.profile.age %}
+                                                <br><small class="text-info">{{ user.profile.age }} years old</small>
                                             {% endif %}
                                         </div>
                                     </div>

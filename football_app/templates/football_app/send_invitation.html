@@ -1,0 +1,81 @@
+{% extends 'football_app/base.html' %}
+
+{% block title %}Send Invitation - {{ group.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white text-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-envelope"></i> Send Invitation
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5>Invite someone to join "{{ group.name }}"</h5>
+                    <p class="text-muted">
+                        {% if group.is_private %}
+                            This is a private group. Only invited users can join.
+                        {% else %}
+                            This is a public group, but you can still send personal invitations.
+                        {% endif %}
+                    </p>
+                </div>
+
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.invitee_username.id_for_label }}" class="form-label">{{ form.invitee_username.label }} *</label>
+                        {{ form.invitee_username }}
+                        {% if form.invitee_username.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.invitee_username.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.invitee_username.help_text %}
+                            <div class="form-text">{{ form.invitee_username.help_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.message.id_for_label }}" class="form-label">{{ form.message.label }}</label>
+                        {{ form.message }}
+                        {% if form.message.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.message.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {% if form.message.help_text %}
+                            <div class="form-text">{{ form.message.help_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'group_detail' group.id %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send Invitation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

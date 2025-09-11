@@ -11,6 +11,95 @@
     </div>
 </div>
 
+<!-- Success Messages -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Pending Invitations Section -->
+{% if pending_invitations %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-envelope"></i> Pending Invitations ({{ pending_invitations|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for invitation in pending_invitations %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">
+                                        <a href="{% url 'group_detail' invitation.group.id %}" class="text-decoration-none">
+                                            {{ invitation.group.name }}
+                                        </a>
+                                    </h6>
+                                    {% if invitation.group.is_private %}
+                                        <span class="badge bg-secondary">Private</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Public</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">
+                                    <i class="fas fa-user"></i> 
+                                    <strong>Invited by:</strong> {{ invitation.inviter.username }}
+                                    {% if invitation.inviter.profile.full_name %}
+                                        ({{ invitation.inviter.profile.full_name }})
+                                    {% endif %}
+                                </p>
+                                <p class="card-text">
+                                    <i class="fas fa-calendar"></i> 
+                                    <strong>Date:</strong> {{ invitation.created_at|date:"M d, Y" }}
+                                </p>
+                                {% if invitation.message %}
+                                    <p class="card-text">
+                                        <i class="fas fa-quote-left"></i> 
+                                        <em>"{{ invitation.message|truncatewords:10 }}"</em>
+                                    </p>
+                                {% endif %}
+                                <div class="row text-center mb-2">
+                                    <div class="col-6">
+                                        <h6 class="text-primary mb-0">{{ invitation.group.member_count }}</h6>
+                                        <small class="text-muted">Members</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <h6 class="text-success mb-0">{{ invitation.group.leagues.count }}</h6>
+                                        <small class="text-muted">Leagues</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'accept_invitation' invitation.id %}" class="btn btn-success btn-sm">
+                                        <i class="fas fa-check"></i> Accept Invitation
+                                    </a>
+                                    <a href="{% url 'decline_invitation' invitation.id %}" class="btn btn-outline-danger btn-sm">
+                                        <i class="fas fa-times"></i> Decline
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     {% for membership in memberships %}
     <div class="col-md-6 col-lg-4 mb-4">
@@ -83,7 +172,7 @@
             <a href="{% url 'group_list' %}" class="btn btn-primary me-2">
                 <i class="fas fa-search"></i> Browse Groups
             </a>
-            <a href="/admin/football_app/usergroup/add/" class="btn btn-success">
+            <a href="{% url 'create_group' %}" class="btn btn-success">
                 <i class="fas fa-plus"></i> Create Group
             </a>
         </div>
@@ -92,7 +181,6 @@
 </div>
 
 <!-- Quick Actions -->
-{% if memberships %}
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
@@ -101,12 +189,17 @@
                 <a href="{% url 'group_list' %}" class="btn btn-outline-primary me-2">
                     <i class="fas fa-search"></i> Browse More Groups
                 </a>
-                <a href="/admin/football_app/usergroup/add/" class="btn btn-outline-success">
+                <a href="{% url 'create_group' %}" class="btn btn-outline-success me-2">
                     <i class="fas fa-plus"></i> Create New Group
+                </a>
+                <a href="{% url 'my_invitations' %}" class="btn btn-outline-warning">
+                    <i class="fas fa-envelope"></i> View All Invitations
+                    {% if pending_invitations %}
+                        <span class="badge bg-warning text-dark ms-1">{{ pending_invitations|length }}</span>
+                    {% endif %}
                 </a>
             </div>
         </div>
     </div>
 </div>
-{% endif %}
 {% endblock %}
