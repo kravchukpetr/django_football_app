@@ -64,12 +64,43 @@ def home(request):
 # League Views
 def league_list(request):
     """List all leagues grouped by country"""
+    # Get additional countries from GET parameters
+    additional_country_ids = request.GET.getlist('countries')
+    
+    # Start with major countries by default
     countries = Country.objects.prefetch_related('leagues').filter(
-        leagues__isnull=False
+        leagues__isnull=False,
+        is_major=True
+    ).distinct().order_by('name')
+    
+    # Add additional countries if specified
+    if additional_country_ids:
+        try:
+            additional_country_ids = [int(cid) for cid in additional_country_ids]
+            additional_countries = Country.objects.prefetch_related('leagues').filter(
+                id__in=additional_country_ids,
+                leagues__isnull=False
+            ).distinct().order_by('name')
+            # Combine and deduplicate
+            all_country_ids = set(countries.values_list('id', flat=True)) | set(additional_countries.values_list('id', flat=True))
+            countries = Country.objects.prefetch_related('leagues').filter(
+                id__in=all_country_ids,
+                leagues__isnull=False
+            ).distinct().order_by('name')
+        except (ValueError, TypeError):
+            # If invalid IDs provided, just use major countries
+            pass
+    
+    # Get all available countries for the dropdown (excluding already selected major countries)
+    available_countries = Country.objects.filter(
+        leagues__isnull=False,
+        is_major=False
     ).distinct().order_by('name')
     
     context = {
         'countries': countries,
+        'available_countries': available_countries,
+        'selected_country_ids': additional_country_ids,
     }
     return render(request, 'football_app/league_list.html', context)
 

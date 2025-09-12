@@ -3,11 +3,95 @@
 {% block title %}Leagues - Football Stats{% endblock %}
 
 {% block content %}
+<style>
+/* Custom styling for multi-select dropdowns */
+.form-select[size] {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+
+.form-select[size]:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.form-select option {
+    padding: 0.375rem 0.75rem;
+}
+
+.filter-section {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+</style>
+
 <div class="row">
     <div class="col-12">
         <h1 class="mb-4">
             <i class="fas fa-trophy"></i> Football Leagues
         </h1>
+    </div>
+</div>
+
+<!-- Filter Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="filter-section">
+            <h5 class="mb-3">
+                <i class="fas fa-filter"></i> Filter Leagues
+            </h5>
+            <p class="text-muted mb-3">
+                By default, leagues from major countries are shown. Select additional countries below to include their leagues.
+            </p>
+            
+            <form method="get" id="country-filter-form">
+                <div class="row align-items-end">
+                    <div class="col-md-8">
+                        <label for="additional-countries" class="form-label">Additional Countries</label>
+                        <select class="form-select" id="additional-countries" name="countries" size="5" multiple>
+                            {% for country in available_countries %}
+                                <option value="{{ country.id }}" 
+                                    {% if country.id|stringformat:"s" in selected_country_ids %}selected{% endif %}>
+                                    {{ country.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple countries
+                        </small>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-search"></i> Apply Filter
+                        </button>
+                        <a href="{% url 'league_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-light border">
+            <h6 class="mb-2">
+                <i class="fas fa-info-circle"></i> Currently Displaying
+            </h6>
+            <p class="mb-0">
+                <strong>{{ countries|length }}</strong> countries with their respective football leagues.
+                {% if selected_country_ids %}
+                    <span class="text-primary">(+ {{ selected_country_ids|length }} additional countries selected)</span>
+                {% endif %}
+            </p>
+        </div>
     </div>
 </div>
 
@@ -21,6 +105,11 @@
                         <img src="{{ country.flag_image }}" alt="{{ country.name }}" style="width: 24px; height: auto;" class="me-2">
                     {% endif %}
                     {{ country.name }}
+                    {% if country.is_major %}
+                        <span class="badge bg-primary ms-2">Major</span>
+                    {% else %}
+                        <span class="badge bg-secondary ms-2">Additional</span>
+                    {% endif %}
                 </h5>
             </div>
             <div class="card-body">
@@ -50,4 +139,66 @@
     </div>
     {% endfor %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('country-filter-form');
+    const countriesSelect = document.getElementById('additional-countries');
+    
+    // Add some helpful functionality
+    const selectedCount = document.createElement('div');
+    selectedCount.className = 'form-text text-info mt-2';
+    selectedCount.innerHTML = '<i class="fas fa-info-circle"></i> <span id="selected-count">0</span> additional countries selected';
+    countriesSelect.parentNode.appendChild(selectedCount);
+    
+    function updateSelectedCount() {
+        const selected = countriesSelect.selectedOptions.length;
+        document.getElementById('selected-count').textContent = selected;
+    }
+    
+    // Update count when selection changes
+    countriesSelect.addEventListener('change', updateSelectedCount);
+    
+    // Initial count update
+    updateSelectedCount();
+    
+    // Add keyboard shortcuts
+    countriesSelect.addEventListener('keydown', function(e) {
+        // Ctrl+A to select all
+        if (e.ctrlKey && e.key === 'a') {
+            e.preventDefault();
+            Array.from(countriesSelect.options).forEach(option => {
+                option.selected = true;
+            });
+            updateSelectedCount();
+        }
+        // Enter to submit form
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            form.submit();
+        }
+    });
+    
+    // Show/hide selected countries info
+    const selectedCountriesInfo = document.createElement('div');
+    selectedCountriesInfo.className = 'alert alert-info mt-3';
+    selectedCountriesInfo.style.display = 'none';
+    selectedCountriesInfo.innerHTML = '<i class="fas fa-info-circle"></i> <strong>Selected countries:</strong> <span id="selected-countries-list"></span>';
+    form.parentNode.appendChild(selectedCountriesInfo);
+    
+    function updateSelectedCountriesList() {
+        const selected = Array.from(countriesSelect.selectedOptions);
+        if (selected.length > 0) {
+            const countryNames = selected.map(option => option.textContent).join(', ');
+            document.getElementById('selected-countries-list').textContent = countryNames;
+            selectedCountriesInfo.style.display = 'block';
+        } else {
+            selectedCountriesInfo.style.display = 'none';
+        }
+    }
+    
+    countriesSelect.addEventListener('change', updateSelectedCountriesList);
+    updateSelectedCountriesList();
+});
+</script>
 {% endblock %}
