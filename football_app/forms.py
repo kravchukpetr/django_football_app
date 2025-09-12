@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import MatchPredict, MatchResult, UserGroup, UserProfile, League, GroupInvitation, GroupMembership
+from .models import MatchPredict, Fixture, UserGroup, UserProfile, League, GroupInvitation, GroupMembership
 
 
 class MatchPredictionForm(forms.ModelForm):
@@ -248,11 +248,11 @@ class PredictionFilterForm(forms.Form):
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'})
     )
     
-    status = forms.MultipleChoiceField(
-        choices=MatchResult.MATCH_STATUS_CHOICES,
-        required=False,
-        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'})
-    )
+    # status = forms.MultipleChoiceField(
+    #     choices=Fixture.MATCH_STATUS_CHOICES,
+    #     required=False,
+    #     widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'})
+    # )
     
     date_from = forms.DateField(
         required=False,

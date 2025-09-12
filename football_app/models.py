@@ -116,11 +116,18 @@ class Season(models.Model):
 class Team(models.Model):
     """Model representing a football team"""
     name = models.CharField(max_length=100)
-    short_name = models.CharField(max_length=20, blank=True)
-    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='teams')
-    league = models.ForeignKey(League, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
-    logo_image = models.URLField(blank=True, null=True, help_text="URL to team logo")
+    country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     founded_year = models.PositiveIntegerField(blank=True, null=True)
+    code = models.CharField(max_length=20, blank=True)
+    national = models.BooleanField(default=False)
+    logo_image = models.URLField(blank=True, null=True, help_text="URL to team logo")   
+    venue_id = models.PositiveIntegerField(blank=True, null=True)
+    venue_name = models.CharField(max_length=100, blank=True, null=True)
+    venue_address = models.CharField(max_length=100, blank=True, null=True)
+    venue_city = models.CharField(max_length=100, blank=True, null=True)
+    venue_capacity = models.PositiveIntegerField(blank=True, null=True)
+    venue_surface = models.CharField(max_length=100, blank=True, null=True)
+    venue_image = models.URLField(blank=True, null=True, help_text="URL to venue image")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -133,38 +140,53 @@ class Team(models.Model):
         return self.name
 
 
-class MatchResult(models.Model):
+class Fixture(models.Model):
     """Model representing a football match result"""
-    MATCH_STATUS_CHOICES = [
-        ('scheduled', 'Scheduled'),
-        ('live', 'Live'),
-        ('finished', 'Finished'),
-        ('postponed', 'Postponed'),
-        ('cancelled', 'Cancelled'),
-    ]
 
+    date = models.DateTimeField()
+    referee = models.CharField(max_length=100, blank=True, null=True)
+    timezone = models.CharField(max_length=20, blank=True, null=True)
+    timestamp = models.PositiveIntegerField(blank=True, null=True)
+    venue_id = models.PositiveIntegerField(blank=True, null=True)
+    venue_name = models.CharField(max_length=100, blank=True, null=True)
+    venue_city = models.CharField(max_length=100, blank=True, null=True)
+    status_long  = models.CharField(max_length=100, blank=True, null=True)
+    status_short = models.CharField(max_length=100, blank=True, null=True)
+    status_elapsed = models.PositiveIntegerField(blank=True, null=True)
+    status_extra = models.CharField(max_length=100, blank=True, null=True)
+    league_external_id = models.PositiveIntegerField(blank=True, null=True)
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches')
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='matches')
+    season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches', null=True, blank=True)
+    round_type =  models.CharField(max_length=100, blank=True, null=True, help_text="Type of round/gameweek")
+    round_number = models.PositiveIntegerField(blank=True, null=True, help_text="Match round/gameweek")
+    
     home_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='home_matches')
     away_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='away_matches')
-    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches')
-    season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches', null=True, blank=True)
-    match_date = models.DateTimeField()
-    home_score = models.PositiveIntegerField(blank=True, null=True)
-    away_score = models.PositiveIntegerField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=MATCH_STATUS_CHOICES, default='scheduled')
-    round_number = models.PositiveIntegerField(blank=True, null=True, help_text="Match round/gameweek")
-    venue = models.CharField(max_length=100, blank=True, null=True)
-    attendance = models.PositiveIntegerField(blank=True, null=True)
-    referee = models.CharField(max_length=100, blank=True, null=True)
+    home_team_winner = models.BooleanField(default=True)
+    away_team_winner = models.BooleanField(default=True)
+    
+    home_goals = models.PositiveIntegerField(blank=True, null=True)
+    away_goals = models.PositiveIntegerField(blank=True, null=True)
+    home_score_fulltime = models.PositiveIntegerField(blank=True, null=True)
+    away_score_fulltime = models.PositiveIntegerField(blank=True, null=True)
+    home_score_halftime = models.PositiveIntegerField(blank=True, null=True)
+    away_score_halftime = models.PositiveIntegerField(blank=True, null=True)
+    home_score_extratime = models.PositiveIntegerField(blank=True, null=True)
+    away_score_extratime = models.PositiveIntegerField(blank=True, null=True)
+    home_score_penalty = models.PositiveIntegerField(blank=True, null=True)
+    away_score_penalty = models.PositiveIntegerField(blank=True, null=True)
+    status = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-match_date']
-        unique_together = ['home_team', 'away_team', 'match_date', 'season']
+        ordering = ['-date']
+        unique_together = ['home_team', 'away_team', 'date', 'season']
 
     def __str__(self):
-        if self.home_score is not None and self.away_score is not None:
-            return f"{self.home_team} {self.home_score}-{self.away_score} {self.away_team}"
+        if self.home_goals is not None and self.away_goals is not None:
+            return f"{self.home_team} {self.home_goals}-{self.away_goals} {self.away_team}"
         return f"{self.home_team} vs {self.away_team}"
 
     @property
@@ -174,11 +196,11 @@ class MatchResult(models.Model):
     @property
     def result(self):
         """Returns 'H' for home win, 'A' for away win, 'D' for draw, None if not finished"""
-        if not self.is_finished or self.home_score is None or self.away_score is None:
+        if not self.is_finished or self.home_goals is None or self.away_goals is None:
             return None
-        if self.home_score > self.away_score:
+        if self.home_goals > self.away_goals:
             return 'H'
-        elif self.away_score > self.home_score:
+        elif self.away_goals > self.home_goals:
             return 'A'
         else:
             return 'D'
@@ -193,7 +215,7 @@ class MatchPredict(models.Model):
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='predictions')
-    match = models.ForeignKey(MatchResult, on_delete=models.CASCADE, related_name='predictions')
+    match = models.ForeignKey(Fixture, on_delete=models.CASCADE, related_name='predictions')
     predicted_result = models.CharField(max_length=1, choices=PREDICTION_CHOICES)
     predicted_home_score = models.PositiveIntegerField(blank=True, null=True)
     predicted_away_score = models.PositiveIntegerField(blank=True, null=True)
@@ -233,8 +255,8 @@ class MatchPredict(models.Model):
         points = 0
         
         # Exact score prediction (5 points)
-        if (self.predicted_home_score == self.match.home_score and 
-            self.predicted_away_score == self.match.away_score):
+        if (self.predicted_home_score == self.match.home_goals and 
+            self.predicted_away_score == self.match.away_goals):
             points = 5
         # Correct result prediction (2 points)
         elif self.is_correct:
@@ -357,8 +379,8 @@ class GroupMembership(models.Model):
         total_points = 0
         
         for prediction in predictions:
-            if (prediction.predicted_home_score == prediction.match.home_score and 
-                prediction.predicted_away_score == prediction.match.away_score):
+            if (prediction.predicted_home_score == prediction.match.home_goals and 
+                prediction.predicted_away_score == prediction.match.away_goals):
                 exact_predictions += 1
                 total_points += 5  # 5 points for exact score
             elif prediction.is_correct:

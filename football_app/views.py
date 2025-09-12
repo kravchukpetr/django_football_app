@@ -9,7 +9,7 @@ from datetime import timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from .models import (
-    League, Country, Team, MatchResult, MatchPredict, 
+    League, Country, Team, Fixture, MatchPredict, 
     UserGroup, GroupMembership, UserProfile, Season, GroupInvitation
 )
 from .forms import MatchPredictionForm, UserSignInForm, UserSignUpForm, CreateGroupForm, GroupInvitationForm
@@ -20,12 +20,12 @@ def home(request):
     # Get current seasons for all leagues
     current_seasons = Season.objects.filter(is_current=True).select_related('league', 'league__country')
     
-    recent_matches = MatchResult.objects.filter(
+    recent_matches = Fixture.objects.filter(
         status='finished',
         season__in=current_seasons
     ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('-match_date')[:20]
     
-    upcoming_matches = MatchResult.objects.filter(
+    upcoming_matches = Fixture.objects.filter(
         status='scheduled',
         match_date__gte=timezone.now(),
         season__in=current_seasons
@@ -141,13 +141,13 @@ def league_detail(request, league_id):
         available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
     
     # Get recent and upcoming matches for the selected season
-    recent_matches = MatchResult.objects.filter(
+    recent_matches = Fixture.objects.filter(
         league=league,
         season=selected_season,
         status='finished'
     ).select_related('home_team', 'away_team', 'season').order_by('-match_date')[:10]
     
-    upcoming_matches = MatchResult.objects.filter(
+    upcoming_matches = Fixture.objects.filter(
         league=league,
         season=selected_season,
         status='scheduled',
@@ -160,10 +160,10 @@ def league_detail(request, league_id):
     
     for team in teams:
         # Get finished matches for this team in the selected season
-        home_matches = MatchResult.objects.filter(
+        home_matches = Fixture.objects.filter(
             home_team=team, league=league, season=selected_season, status='finished'
         )
-        away_matches = MatchResult.objects.filter(
+        away_matches = Fixture.objects.filter(
             away_team=team, league=league, season=selected_season, status='finished'
         )
         
@@ -268,7 +268,7 @@ def league_season_results(request, league_id):
         available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
     
     # Get all matches for this league and season
-    matches = MatchResult.objects.filter(
+    matches = Fixture.objects.filter(
         league=league,
         season=selected_season
     ).select_related('home_team', 'away_team').order_by('round_number', 'match_date')
@@ -342,12 +342,12 @@ def team_detail(request, team_id):
         available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
     
     # Get team's matches for the selected season
-    home_matches = MatchResult.objects.filter(
+    home_matches = Fixture.objects.filter(
         home_team=team,
         season=selected_season
     ).select_related('away_team', 'league', 'season').order_by('-match_date')
     
-    away_matches = MatchResult.objects.filter(
+    away_matches = Fixture.objects.filter(
         away_team=team,
         season=selected_season
     ).select_related('home_team', 'league', 'season').order_by('-match_date')
@@ -632,7 +632,7 @@ def prediction_center(request):
     # Get leagues from user's groups
     if user_groups.exists():
         leagues = League.objects.filter(prediction_groups__in=user_groups).distinct()
-        matches = MatchResult.objects.filter(
+        matches = Fixture.objects.filter(
             league__in=leagues,
             season=selected_season,
             status='scheduled',
@@ -640,7 +640,7 @@ def prediction_center(request):
         ).select_related('home_team', 'away_team', 'league', 'season').order_by('match_date')[:20]
     else:
         # If user is not in any groups, show all upcoming matches
-        matches = MatchResult.objects.filter(
+        matches = Fixture.objects.filter(
             season=selected_season,
             status='scheduled',
             match_date__gte=timezone.now()
@@ -676,7 +676,7 @@ def prediction_center(request):
 @login_required
 def make_prediction(request, match_id):
     """Make a prediction for a specific match"""
-    match = get_object_or_404(MatchResult, id=match_id)
+    match = get_object_or_404(Fixture, id=match_id)
     
     # Check if user can make predictions for this match
     if match.status in ['finished', 'live']:
@@ -740,13 +740,13 @@ def bulk_predictions(request):
     # Get base queryset
     if user_groups.exists():
         leagues = League.objects.filter(prediction_groups__in=user_groups).distinct()
-        matches = MatchResult.objects.filter(
+        matches = Fixture.objects.filter(
             league__in=leagues,
             status='scheduled',
             match_date__gte=timezone.now()
         )
     else:
-        matches = MatchResult.objects.filter(
+        matches = Fixture.objects.filter(
             status='scheduled',
             match_date__gte=timezone.now()
         )

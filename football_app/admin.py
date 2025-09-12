@@ -5,7 +5,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import (
-    Country, League, Team, MatchResult, MatchPredict, 
+    Country, League, Team, Fixture, MatchPredict, 
     UserGroup, GroupMembership, GroupInvitation, UserProfile, Season
 )
 
@@ -15,12 +15,6 @@ class LeagueInline(admin.TabularInline):
     model = League
     extra = 1
     fields = ('name', 'level', 'is_active')
-
-
-class TeamInline(admin.TabularInline):
-    model = Team
-    extra = 1
-    fields = ('name', 'short_name', 'is_active')
 
 
 class SeasonInline(admin.TabularInline):
@@ -77,7 +71,7 @@ class SeasonAdmin(admin.ModelAdmin):
     def match_count(self, obj):
         count = obj.matches.count()
         if count > 0:
-            url = reverse('admin:football_app_matchresult_changelist') + f'?season__id__exact={obj.id}'
+            url = reverse('admin:football_app_fixture_changelist') + f'?season__id__exact={obj.id}'
             return format_html('<a href="{}">{} matches</a>', url, count)
         return "0"
     match_count.short_description = 'Matches'
@@ -128,10 +122,14 @@ class LeagueAdmin(admin.ModelAdmin):
     list_filter = ('country', 'level', 'is_active', 'created_at')
     search_fields = ('name', 'country__name')
     list_editable = ('is_active',)
-    inlines = [SeasonInline, TeamInline]
+    inlines = [SeasonInline]
     
     def team_count(self, obj):
-        return obj.teams.count()
+        # Count unique teams that have played in this league
+        home_teams = obj.matches.values_list('home_team_id', flat=True).distinct()
+        away_teams = obj.matches.values_list('away_team_id', flat=True).distinct()
+        unique_teams = set(home_teams) | set(away_teams)
+        return len(unique_teams)
     team_count.short_description = 'Teams'
     
     def season_count(self, obj):
@@ -145,31 +143,31 @@ class LeagueAdmin(admin.ModelAdmin):
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ('name', 'short_name', 'country', 'league', 'founded_year', 'is_active')
-    list_filter = ('country', 'league', 'is_active', 'created_at')
-    search_fields = ('name', 'short_name', 'country__name', 'league__name')
+    list_display = ('name', 'code', 'country', 'founded_year', 'is_active')
+    list_filter = ('country', 'is_active', 'created_at')
+    search_fields = ('name', 'code', 'country__name')
     list_editable = ('is_active',)
     list_per_page = 50
 
 
-@admin.register(MatchResult)
-class MatchResultAdmin(admin.ModelAdmin):
-    list_display = ('match_display', 'league', 'season', 'match_date', 'score_display', 'status', 'prediction_count')
-    list_filter = ('league', 'season', 'status', 'match_date', 'created_at')
+@admin.register(Fixture)
+class FixtureAdmin(admin.ModelAdmin):
+    list_display = ('match_display', 'league', 'season', 'date', 'score_display', 'status', 'prediction_count')
+    list_filter = ('league', 'season', 'status', 'date', 'created_at')
     search_fields = ('home_team__name', 'away_team__name', 'league__name', 'season__name')
     list_editable = ('status',)
-    date_hierarchy = 'match_date'
+    date_hierarchy = 'date'
     inlines = [MatchPredictInline]
     
     fieldsets = (
         ('Match Information', {
-            'fields': ('home_team', 'away_team', 'league', 'season', 'match_date', 'round_number')
+            'fields': ('home_team', 'away_team', 'league', 'season', 'date', 'round_number')
         }),
         ('Result', {
-            'fields': ('home_score', 'away_score', 'status')
+            'fields': ('home_goals', 'away_goals', 'home_score_fulltime', 'away_score_fulltime', 'status')
         }),
-        ('Additional Info', {
-            'fields': ('venue', 'attendance', 'referee'),
+        ('Venue', {
+            'fields': ('venue_name', 'venue_city', 'referee'),
             'classes': ('collapse',)
         }),
     )
@@ -179,8 +177,8 @@ class MatchResultAdmin(admin.ModelAdmin):
     match_display.short_description = 'Match'
     
     def score_display(self, obj):
-        if obj.home_score is not None and obj.away_score is not None:
-            return f"{obj.home_score}-{obj.away_score}"
+        if obj.home_goals is not None and obj.away_goals is not None:
+            return f"{obj.home_goals}-{obj.away_goals}"
         return "-"
     score_display.short_description = 'Score'
     
@@ -239,16 +237,18 @@ class MatchPredictAdmin(admin.ModelAdmin):
     def actual_result(self, obj):
         if obj.match.status == 'finished':
             result_text = ""
-            if obj.match.result == 'H':
-                result_text = "Home Win"
-            elif obj.match.result == 'A':
-                result_text = "Away Win"
-            elif obj.match.result == 'D':
-                result_text = "Draw"
+            # Determine result based on goals
+            if obj.match.home_goals is not None and obj.match.away_goals is not None:
+                if obj.match.home_goals > obj.match.away_goals:
+                    result_text = "Home Win"
+                elif obj.match.away_goals > obj.match.home_goals:
+                    result_text = "Away Win"
+                else:
+                    result_text = "Draw"
+                return f"{result_text} ({obj.match.home_goals}-{obj.match.away_goals})"
             else:
-                result_text = "Unknown"
-            return f"{result_text} ({obj.match.home_score}-{obj.match.away_score})"
-        return obj.match.get_status_display()
+                return "Unknown"
+        return obj.match.status or "Pending"
     actual_result.short_description = 'Actual Result'
     
     def is_correct_display(self, obj):
@@ -346,7 +346,7 @@ class GroupInvitationAdmin(admin.ModelAdmin):
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'total_points', 'total_predictions', 'accuracy_display', 'favorite_team', 'created_at')
-    list_filter = ('created_at', 'favorite_team__league')
+    list_filter = ('created_at', 'favorite_team')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
     
     fieldsets = (
