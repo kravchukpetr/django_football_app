@@ -10,6 +10,7 @@ class Country(models.Model):
     flag_image = models.URLField(blank=True, null=True, help_text="URL to country flag image")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_major = models.BooleanField(default=False, help_text="Flag to identify major countries")
 
     class Meta:
         verbose_name_plural = "Countries"
@@ -23,7 +24,7 @@ class League(models.Model):
     """Model representing a football league"""
     name = models.CharField(max_length=150)
     country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='leagues')
-    level = models.PositiveIntegerField(default=1, blank=True, null=True, help_text="League level (1 = top tier)")
+    level = models.PositiveIntegerField(default=2, blank=True, null=True, help_text="League level (1 = top tier)")
     type = models.CharField(max_length=150, blank=True, null=True)
     external_id = models.PositiveIntegerField(blank=True, null=True)
     logo_image = models.URLField(blank=True, null=True, help_text="URL to league logo")
@@ -41,12 +42,12 @@ class League(models.Model):
 
 class Season(models.Model):
     """Model representing a football season"""
-    name = models.CharField(max_length=20, help_text="e.g., 2023/2024")
+    name = models.CharField(max_length=100, help_text="e.g., 2023/2024")
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='seasons', blank=True, null=True)
     start_year = models.PositiveIntegerField(help_text="Starting year of the season")
-    end_year = models.PositiveIntegerField(help_text="Ending year of the season")
-    start_date = models.DateField(help_text="Season start date")
-    end_date = models.DateField(help_text="Season end date")
+    end_year = models.PositiveIntegerField(help_text="Ending year of the season", blank=True, null=True)
+    start_date = models.DateField(blank=True, null=True, help_text="Season start date")
+    end_date = models.DateField(blank=True, null=True, help_text="Season end date")
     is_current = models.BooleanField(default=False, help_text="Is this the current active season?")
     is_active = models.BooleanField(default=True, help_text="Is this season available for predictions?")
     

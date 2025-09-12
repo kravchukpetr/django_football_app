@@ -41,4 +41,7 @@ urlpatterns = [
     path('predictions/make/<int:match_id>/', views.make_prediction, name='make_prediction'),
     path('predictions/bulk/', views.bulk_predictions, name='bulk_predictions'),
     path('predictions/my/', views.my_predictions, name='my_predictions'),
+    
+    # AJAX URLs
+    path('ajax/get-leagues/', views.get_leagues_by_country, name='get_leagues_by_country'),
 ]

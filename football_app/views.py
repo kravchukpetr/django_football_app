@@ -6,6 +6,8 @@ from django.contrib import messages
 from django.db.models import Count, Q, Avg, Sum, F
 from django.utils import timezone
 from datetime import timedelta
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from .models import (
     League, Country, Team, MatchResult, MatchPredict, 
     UserGroup, GroupMembership, UserProfile, Season, GroupInvitation
@@ -1058,3 +1060,37 @@ def my_invitations_view(request):
     return render(request, 'football_app/my_invitations.html', {
         'invitations': valid_invitations
     })
+
+
+@require_http_methods(["GET"])
+def get_leagues_by_country(request):
+    """AJAX view to get leagues for selected countries"""
+    country_ids = request.GET.getlist('country_ids[]')
+    
+    if not country_ids:
+        return JsonResponse({'leagues': []})
+    
+    try:
+        # Convert string IDs to integers
+        country_ids = [int(cid) for cid in country_ids]
+        
+        # Get leagues for the selected countries
+        leagues = League.objects.filter(
+            country_id__in=country_ids,
+            is_active=True
+        ).select_related('country').order_by('country__name', 'name')
+        
+        # Format the response
+        leagues_data = []
+        for league in leagues:
+            leagues_data.append({
+                'id': league.id,
+                'name': league.name,
+                'country_name': league.country.name,
+                'display_name': f"{league.name} ({league.country.name})"
+            })
+        
+        return JsonResponse({'leagues': leagues_data})
+    
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Invalid country IDs'}, status=400)

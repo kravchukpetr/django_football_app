@@ -408,6 +408,19 @@ class UserSignInForm(forms.Form):
 class CreateGroupForm(forms.ModelForm):
     """Form for creating a new user group"""
     
+    # Add separate country field for cascading dropdown
+    countries = forms.ModelMultipleChoiceField(
+        queryset=None,  # Will be set in __init__
+        required=False,
+        widget=forms.SelectMultiple(attrs={
+            'class': 'form-select',
+            'id': 'id_countries',
+            'size': '5'
+        }),
+        label='Countries',
+        help_text='Select countries first, then choose leagues from selected countries'
+    )
+    
     class Meta:
         model = UserGroup
         fields = ['name', 'description', 'leagues', 'is_private', 'max_members']
@@ -420,9 +433,6 @@ class CreateGroupForm(forms.ModelForm):
                 'class': 'form-control',
                 'rows': 3,
                 'placeholder': 'Describe your group (optional)'
-            }),
-            'leagues': forms.CheckboxSelectMultiple(attrs={
-                'class': 'form-check-input'
             }),
             'is_private': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
@@ -437,22 +447,37 @@ class CreateGroupForm(forms.ModelForm):
         labels = {
             'name': 'Group Name',
             'description': 'Description',
-            'leagues': 'Leagues to Predict',
             'is_private': 'Private Group',
             'max_members': 'Maximum Members'
         }
         help_texts = {
             'name': 'Choose a unique name for your group',
             'description': 'Optional description of your group',
-            'leagues': 'Select which leagues this group will predict',
             'is_private': 'Private groups require invitation to join',
             'max_members': 'Maximum number of members allowed (2-100)'
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Only show active leagues
-        self.fields['leagues'].queryset = League.objects.filter(is_active=True).order_by('country__name', 'name')
+        
+        # Set countries queryset - only show countries that have active leagues
+        from .models import Country
+        self.fields['countries'].queryset = Country.objects.filter(
+            leagues__is_active=True
+        ).distinct().order_by('name')
+        
+        # Override the leagues field to use proper queryset and widget
+        self.fields['leagues'] = forms.ModelMultipleChoiceField(
+            queryset=League.objects.filter(is_active=True),  # Only active leagues
+            required=True,
+            widget=forms.SelectMultiple(attrs={
+                'class': 'form-select',
+                'id': 'id_leagues',
+                'size': '8'
+            }),
+            label='Leagues to Predict',
+            help_text='Select leagues from the chosen countries'
+        )
     
     def clean_name(self):
         name = self.cleaned_data.get('name')
@@ -465,6 +490,25 @@ class CreateGroupForm(forms.ModelForm):
         if max_members and (max_members < 2 or max_members > 100):
             raise ValidationError("Maximum members must be between 2 and 100.")
         return max_members
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        countries = cleaned_data.get('countries')
+        leagues = cleaned_data.get('leagues')
+        
+        # Validate that at least one league is selected
+        if not leagues:
+            raise ValidationError("Please select at least one league.")
+        
+        # Validate that selected leagues belong to selected countries
+        if countries and leagues:
+            selected_country_ids = set(countries.values_list('id', flat=True))
+            league_country_ids = set(leagues.values_list('country_id', flat=True))
+            
+            if not league_country_ids.issubset(selected_country_ids):
+                raise ValidationError("Selected leagues must belong to the selected countries.")
+        
+        return cleaned_data
 
 
 class GroupInvitationForm(forms.ModelForm):
