@@ -67,9 +67,13 @@ def league_list(request):
     # Get additional countries from GET parameters
     additional_country_ids = request.GET.getlist('countries')
     
-    # Start with major countries by default
-    countries = Country.objects.prefetch_related('leagues').filter(
+    # Start with major countries by default, filtering for level 1 or 2 leagues only
+    from django.db.models import Prefetch
+    countries = Country.objects.prefetch_related(
+        Prefetch('leagues', queryset=League.objects.filter(level__in=[1, 2]))
+    ).filter(
         leagues__isnull=False,
+        leagues__level__in=[1, 2],
         is_major=True
     ).distinct().order_by('name')
     
@@ -77,23 +81,31 @@ def league_list(request):
     if additional_country_ids:
         try:
             additional_country_ids = [int(cid) for cid in additional_country_ids]
-            additional_countries = Country.objects.prefetch_related('leagues').filter(
+            additional_countries = Country.objects.prefetch_related(
+                Prefetch('leagues', queryset=League.objects.filter(level__in=[1, 2]))
+            ).filter(
                 id__in=additional_country_ids,
-                leagues__isnull=False
+                leagues__isnull=False,
+                leagues__level__in=[1, 2]
             ).distinct().order_by('name')
             # Combine and deduplicate
             all_country_ids = set(countries.values_list('id', flat=True)) | set(additional_countries.values_list('id', flat=True))
-            countries = Country.objects.prefetch_related('leagues').filter(
+            countries = Country.objects.prefetch_related(
+                Prefetch('leagues', queryset=League.objects.filter(level__in=[1, 2]))
+            ).filter(
                 id__in=all_country_ids,
-                leagues__isnull=False
+                leagues__isnull=False,
+                leagues__level__in=[1, 2]
             ).distinct().order_by('name')
         except (ValueError, TypeError):
             # If invalid IDs provided, just use major countries
             pass
     
     # Get all available countries for the dropdown (excluding already selected major countries)
+    # Only include countries that have level 1 or 2 leagues
     available_countries = Country.objects.filter(
         leagues__isnull=False,
+        leagues__level__in=[1, 2],
         is_major=False
     ).distinct().order_by('name')
     
@@ -1105,10 +1117,11 @@ def get_leagues_by_country(request):
         # Convert string IDs to integers
         country_ids = [int(cid) for cid in country_ids]
         
-        # Get leagues for the selected countries
+        # Get leagues for the selected countries (only level 1 & 2)
         leagues = League.objects.filter(
             country_id__in=country_ids,
-            is_active=True
+            is_active=True,
+            level__in=[1, 2]
         ).select_related('country').order_by('country__name', 'name')
         
         # Format the response
@@ -1118,6 +1131,7 @@ def get_leagues_by_country(request):
                 'id': league.id,
                 'name': league.name,
                 'country_name': league.country.name,
+                'level': league.level,
                 'display_name': f"{league.name} ({league.country.name})"
             })
         

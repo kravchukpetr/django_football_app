@@ -45,7 +45,7 @@
                 <i class="fas fa-filter"></i> Filter Leagues
             </h5>
             <p class="text-muted mb-3">
-                By default, leagues from major countries are shown. Select additional countries below to include their leagues.
+                By default, top-tier leagues (Level 1 & 2) from major countries are shown. Select additional countries below to include their top-tier leagues.
             </p>
             
             <form method="get" id="country-filter-form">
@@ -86,7 +86,7 @@
                 <i class="fas fa-info-circle"></i> Currently Displaying
             </h6>
             <p class="mb-0">
-                <strong>{{ countries|length }}</strong> countries with their respective football leagues.
+                <strong>{{ countries|length }}</strong> countries with their top-tier football leagues (Level 1 & 2 only).
                 {% if selected_country_ids %}
                     <span class="text-primary">(+ {{ selected_country_ids|length }} additional countries selected)</span>
                 {% endif %}
@@ -123,7 +123,7 @@
                                 {% endif %}
                                 {{ league.name }}
                             </div>
-                            <span class="badge bg-secondary">Level {{ league.level }}</span>
+                            <span class="badge {% if league.level == 1 %}bg-primary{% else %}bg-secondary{% endif %}">Level {{ league.level }}</span>
                         </div>
                     </a>
                     {% endfor %}

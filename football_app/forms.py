@@ -460,15 +460,16 @@ class CreateGroupForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Set countries queryset - only show countries that have active leagues
+        # Set countries queryset - only show countries that have active level 1 or 2 leagues
         from .models import Country
         self.fields['countries'].queryset = Country.objects.filter(
-            leagues__is_active=True
+            leagues__is_active=True,
+            leagues__level__in=[1, 2]
         ).distinct().order_by('name')
         
         # Override the leagues field to use proper queryset and widget
         self.fields['leagues'] = forms.ModelMultipleChoiceField(
-            queryset=League.objects.filter(is_active=True),  # Only active leagues
+            queryset=League.objects.filter(is_active=True, level__in=[1, 2]),  # Only active level 1&2 leagues
             required=True,
             widget=forms.SelectMultiple(attrs={
                 'class': 'form-select',
@@ -476,7 +477,7 @@ class CreateGroupForm(forms.ModelForm):
                 'size': '8'
             }),
             label='Leagues to Predict',
-            help_text='Select leagues from the chosen countries'
+            help_text='Select top-tier leagues (Level 1 & 2) from the chosen countries'
         )
     
     def clean_name(self):

@@ -88,6 +88,7 @@
                         {{ form.countries }}
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple countries
+                            <br><i class="fas fa-star"></i> Only countries with top-tier leagues (Level 1 & 2) are available
                         </small>
                         {% if form.countries.errors %}
                             <div class="text-danger small mt-1">
@@ -108,6 +109,7 @@
                         </div>
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple leagues
+                            <br><i class="fas fa-star"></i> Only top-tier leagues (Level 1 & 2) are available
                         </small>
                         {% if form.leagues.errors %}
                             <div class="text-danger small mt-1">
@@ -226,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.leagues.forEach(league => {
                         const option = document.createElement('option');
                         option.value = league.id;
-                        option.textContent = league.display_name;
+                        option.textContent = `${league.display_name} (Level ${league.level || 1})`;
                         leaguesSelect.appendChild(option);
                     });
                 } else {
