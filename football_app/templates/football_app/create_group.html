@@ -88,7 +88,7 @@
                         {{ form.countries }}
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple countries
-                            <br><i class="fas fa-star"></i> Only countries with top-tier leagues (Level 1 & 2) are available
+                            <br><i class="fas fa-star"></i> Only countries with active leagues are available
                         </small>
                         {% if form.countries.errors %}
                             <div class="text-danger small mt-1">
@@ -109,7 +109,7 @@
                         </div>
                         <small class="form-text text-muted">
                             <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple leagues
-                            <br><i class="fas fa-star"></i> Only top-tier leagues (Level 1 & 2) are available
+                            <br><i class="fas fa-star"></i> Only active leagues are available
                         </small>
                         {% if form.leagues.errors %}
                             <div class="text-danger small mt-1">
