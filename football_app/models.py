@@ -26,7 +26,6 @@ class League(models.Model):
     country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='leagues')
     level = models.PositiveIntegerField(default=2, blank=True, null=True, help_text="League level (1 = top tier)")
     type = models.CharField(max_length=150, blank=True, null=True)
-    external_id = models.PositiveIntegerField(blank=True, null=True)
     logo_image = models.URLField(blank=True, null=True, help_text="URL to league logo")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
