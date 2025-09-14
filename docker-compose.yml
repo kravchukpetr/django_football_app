@@ -5,14 +5,30 @@ services:
     build: .
     container_name: football_postgres
     environment:
-      POSTGRES_DB: football_stats
-      POSTGRES_USER: football_user
-      POSTGRES_PASSWORD: football_password
+      - POSTGRES_USER=${PG_USER}
+      - POSTGRES_PASSWORD=${PG_PWD}
+      - POSTGRES_DB=${PG_DB}
     ports:
-      - "5432:5432"
+      - "${PG_PORT}:${PG_PORT}"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - football_app_network
 
-volumes:
-  postgres_data:
+  pgadmin:
+    container_name: pgadmin4_container
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PG_ADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PG_ADMIN_PWD}
+    ports:
+      - "5050:80"
+    networks:
+      - football_app_network
+
+networks:
+  football_app_network:
+    name: football_app_network
+    driver: bridge
