@@ -186,7 +186,7 @@
                         </thead>
                         <tbody>
                             {% for prediction in predictions %}
-                            <tr class="{% if prediction.match.status_long == 'finished' %}{% if prediction.is_correct %}table-success{% elif prediction.points_earned == 0 %}table-danger{% endif %}{% endif %}">
+                            <tr class="{% if prediction.match.status_long == 'Match Finished' %}{% if prediction.is_correct %}table-success{% elif prediction.points_earned == 0 %}table-danger{% endif %}{% endif %}">
                                 <td>
                                     <strong>{{ prediction.match.home_team }}</strong>
                                     <br>
@@ -222,7 +222,7 @@
                                     </small>
                                 </td>
                                 <td>
-                                    {% if prediction.match.status_long == 'finished' %}
+                                    {% if prediction.match.status_long == 'Match Finished' %}
                                         <strong>
                                             {% if prediction.match.result == 'H' %}
                                                 Home Win
@@ -245,7 +245,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if prediction.match.status_long == 'finished' %}
+                                    {% if prediction.match.status_long == 'Match Finished' %}
                                         {% if prediction.points_earned > 0 %}
                                             <span class="badge bg-success">+{{ prediction.points_earned }}</span>
                                             {% if prediction.points_earned == 5 %}
@@ -262,18 +262,18 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if prediction.match.status_long == 'scheduled' %}
+                                    {% if prediction.match.status_long == 'Not Started' %}
                                         <span class="badge bg-primary">Upcoming</span>
-                                    {% elif prediction.match.status_long == 'live' %}
+                                    {% elif prediction.match.status_long == 'In Progress' or prediction.match.status_long == 'First Half, Kick Off' or prediction.match.status_long == 'Second Half, 2nd Half Started' or prediction.match.status_long == 'Extra Time' or prediction.match.status_long == 'Penalty In Progress' %}
                                         <span class="badge bg-warning">Live</span>
-                                    {% elif prediction.match.status_long == 'finished' %}
+                                    {% elif prediction.match.status_long == 'Match Finished' %}
                                         <span class="badge bg-success">Finished</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ prediction.match.get_status_display }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if prediction.match.status_long == 'scheduled' and prediction.match.date > prediction.match.date|now %}
+                                    {% if prediction.match.status_long == 'Not Started' and prediction.match.date > prediction.match.date|now %}
                                         <a href="{% url 'make_prediction' prediction.match.id %}" 
                                            class="btn btn-sm btn-outline-primary">
                                             <i class="fas fa-edit"></i> Edit

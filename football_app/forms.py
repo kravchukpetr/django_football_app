@@ -94,7 +94,7 @@ class MatchPredictionForm(forms.ModelForm):
 
         # Validate that match is still open for predictions
         if self.match:
-            if self.match.status_long in ['finished', 'live']:
+            if self.match.status_long in ['Match Finished', 'In Progress', 'First Half, Kick Off', 'Second Half, 2nd Half Started', 'Extra Time', 'Penalty In Progress']:
                 raise ValidationError("Cannot make predictions for finished or live matches.")
             
             # Check if prediction deadline has passed (e.g., 1 hour before match)
@@ -183,7 +183,7 @@ class BulkPredictionForm(forms.Form):
                 continue
             
             # Validate that match is still open for predictions
-            if match.status_long in ['finished', 'live']:
+            if match.status_long in ['Match Finished', 'In Progress', 'First Half, Kick Off', 'Second Half, 2nd Half Started', 'Extra Time', 'Penalty In Progress']:
                 raise ValidationError(f"Cannot make predictions for {match} - match is {match.get_status_display().lower()}.")
             
             if match.date <= timezone.now():

@@ -315,7 +315,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if match.status_long == 'finished' %}
+                                    {% if match.status_long == 'Match Finished' %}
                                         <span class="match-result">{{ match.home_goals }}-{{ match.away_goals }}</span>
                                         {% if match.home_team == team %}
                                             {% if match.home_goals > match.away_goals %}
@@ -339,7 +339,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge {% if match.status_long == 'finished' %}bg-success{% elif match.status_long == 'live' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    <span class="badge {% if match.status_long == 'Match Finished' %}bg-success{% elif match.status_long == 'In Progress' or match.status_long == 'First Half, Kick Off' or match.status_long == 'Second Half, 2nd Half Started' or match.status_long == 'Extra Time' or match.status_long == 'Penalty In Progress' %}bg-warning{% else %}bg-secondary{% endif %}">
                                         {{ match.get_status_display }}
                                     </span>
                                 </td>

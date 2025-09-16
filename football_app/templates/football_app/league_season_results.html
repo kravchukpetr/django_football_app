@@ -146,7 +146,7 @@
                         <div class="row">
                             {% for match in tour.matches %}
                             <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="card {% if match.status_long == 'finished' %}border-success{% elif match.status_long == 'live' %}border-warning{% else %}border-light{% endif %}">
+                                <div class="card {% if match.status_long == 'Match Finished' %}border-success{% elif match.status_long == 'In Progress' or match.status_long == 'First Half, Kick Off' or match.status_long == 'Second Half, 2nd Half Started' or match.status_long == 'Extra Time' or match.status_long == 'Penalty In Progress' %}border-warning{% else %}border-light{% endif %}">
                                     <div class="card-body">
                                         <div class="text-center">
                                             <div class="row align-items-center">
@@ -157,9 +157,9 @@
                                                     <strong>{{ match.home_team.short_name|default:match.home_team.name }}</strong>
                                                 </div>
                                                 <div class="col-2 text-center">
-                                                    {% if match.status_long == 'finished' %}
+                                                    {% if match.status_long == 'Match Finished' %}
                                                         <span class="match-result fs-5">{{ match.home_goals }}-{{ match.away_goals }}</span>
-                                                    {% elif match.status_long == 'live' %}
+                                                    {% elif match.status_long == 'In Progress' or match.status_long == 'First Half, Kick Off' or match.status_long == 'Second Half, 2nd Half Started' or match.status_long == 'Extra Time' or match.status_long == 'Penalty In Progress' %}
                                                         <span class="badge bg-warning">LIVE</span>
                                                     {% else %}
                                                         <span class="text-muted">vs</span>

@@ -36,12 +36,12 @@ def home(request):
     current_seasons = Season.objects.filter(is_current=True).select_related('league', 'league__country')
     
     recent_matches = Fixture.objects.filter(
-        status_long='finished',
+        status_long='Match Finished',
         season__in=current_seasons
     ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('-date')[:20]
     
     upcoming_matches = Fixture.objects.filter(
-        status_long='scheduled',
+        status_long='Not Started',
         date__gte=timezone.now(),
         season__in=current_seasons
     ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('date')[:20]
@@ -159,13 +159,13 @@ def league_detail(request, league_id):
     recent_matches = Fixture.objects.filter(
         league=league,
         season=selected_season,
-        status_long='finished'
+        status_long='Match Finished'
     ).select_related('home_team', 'away_team', 'season').order_by('-date')[:10]
     
     upcoming_matches = Fixture.objects.filter(
         league=league,
         season=selected_season,
-        status_long='scheduled',
+        status_long='Not Started',
         date__gte=timezone.now()
     ).select_related('home_team', 'away_team', 'season').order_by('date')[:10]
     
@@ -179,10 +179,10 @@ def league_detail(request, league_id):
     for team in teams:
         # Get finished matches for this team in the selected season
         home_matches = Fixture.objects.filter(
-            home_team=team, league=league, season=selected_season, status_long='finished'
+            home_team=team, league=league, season=selected_season, status_long='Match Finished'
         )
         away_matches = Fixture.objects.filter(
-            away_team=team, league=league, season=selected_season, status_long='finished'
+            away_team=team, league=league, season=selected_season, status_long='Match Finished'
         )
         
         played = home_matches.count() + away_matches.count()
@@ -304,7 +304,7 @@ def league_season_results(request, league_id):
             }
         tours[round_num]['matches'].append(match)
         tours[round_num]['total_count'] += 1
-        if match.status_long == 'finished':
+        if match.status_long == 'Match Finished':
             tours[round_num]['finished_count'] += 1
     
     # Sort tours by round number
@@ -312,8 +312,8 @@ def league_season_results(request, league_id):
     
     # Calculate some statistics
     total_matches = matches.count()
-    finished_matches = matches.filter(status_long='finished').count()
-    scheduled_matches = matches.filter(status_long='scheduled').count()
+    finished_matches = matches.filter(status_long='Match Finished').count()
+    scheduled_matches = matches.filter(status_long='Not Started').count()
     
     context = {
         'league': league,
@@ -377,8 +377,8 @@ def team_detail(request, team_id):
     all_matches.sort(key=lambda x: x.date, reverse=True)
     
     # Calculate team statistics for the selected season
-    finished_home_matches = home_matches.filter(status_long='finished')
-    finished_away_matches = away_matches.filter(status_long='finished')
+    finished_home_matches = home_matches.filter(status_long='Match Finished')
+    finished_away_matches = away_matches.filter(status_long='Match Finished')
     
     total_matches = finished_home_matches.count() + finished_away_matches.count()
     
@@ -415,10 +415,10 @@ def team_detail(request, team_id):
     points = total_wins * 3 + total_draws
     
     # Get recent matches (last 10)
-    recent_matches = [match for match in all_matches if match.status_long == 'finished'][:10]
+    recent_matches = [match for match in all_matches if match.status_long == 'Match Finished'][:10]
     
     # Get upcoming matches
-    upcoming_matches = [match for match in all_matches if match.status_long == 'scheduled' and match.date >= timezone.now()][:10]
+    upcoming_matches = [match for match in all_matches if match.status_long == 'Not Started' and match.date >= timezone.now()][:10]
     
     # Calculate form (last 5 matches)
     last_5_matches = recent_matches[:5]
@@ -465,7 +465,7 @@ def team_detail(request, team_id):
         'team_league': team_league,
         'selected_season': selected_season,
         'available_seasons': available_seasons,
-        'all_matches': all_matches[:20],  # Limit to 20 most recent matches
+        'all_matches': all_matches,
         'recent_matches': recent_matches,
         'upcoming_matches': upcoming_matches,
         'stats': stats,
@@ -479,7 +479,7 @@ def user_list(request):
     users = User.objects.select_related('profile').annotate(
         total_predictions=Count('predictions'),
         correct_predictions=Count('predictions', filter=Q(
-            predictions__match__status_long='finished'
+            predictions__match__status_long='Match Finished'
         ))
     ).order_by('-profile__total_points')[:50]  # Top 50 users
     
@@ -508,7 +508,7 @@ def user_detail(request, user_id):
     
     # Statistics by league
     league_stats = {}
-    for prediction in MatchPredict.objects.filter(user=user, match__status_long='finished'):
+    for prediction in MatchPredict.objects.filter(user=user, match__status_long='Match Finished'):
         league = prediction.match.league
         if league not in league_stats:
             league_stats[league] = {
@@ -665,14 +665,14 @@ def prediction_center(request):
         matches = Fixture.objects.filter(
             league__in=leagues,
             season=selected_season,
-            status_long='scheduled',
+            status_long='Not Started',
             date__gte=timezone.now()
         ).select_related('home_team', 'away_team', 'league', 'season').order_by('date')[:20]
     else:
         # If user is not in any groups, show all upcoming matches
         matches = Fixture.objects.filter(
             season=selected_season,
-            status_long='scheduled',
+            status_long='Not Started',
             date__gte=timezone.now()
         ).select_related('home_team', 'away_team', 'league', 'season').order_by('date')[:20]
     
@@ -689,7 +689,7 @@ def prediction_center(request):
     for match in matches:
         match.user_prediction = predictions_dict.get(match.id)
         match.can_predict = (
-            match.status_long == 'scheduled' and 
+            match.status_long == 'Not Started' and 
             match.date > timezone.now()
         )
     
@@ -709,7 +709,7 @@ def make_prediction(request, match_id):
     match = get_object_or_404(Fixture, id=match_id)
     
     # Check if user can make predictions for this match
-    if match.status_long in ['finished', 'live']:
+    if match.status_long in ['Match Finished', 'In Progress', 'First Half, Kick Off', 'Second Half, 2nd Half Started', 'Extra Time', 'Penalty In Progress']:
         messages.error(request, f"Cannot make predictions for {match.get_status_display().lower()} matches.")
         return redirect('prediction_center')
     
@@ -772,12 +772,12 @@ def bulk_predictions(request):
         leagues = League.objects.filter(prediction_groups__in=user_groups).distinct()
         matches = Fixture.objects.filter(
             league__in=leagues,
-            status_long='scheduled',
+            status_long='Not Started',
             date__gte=timezone.now()
         )
     else:
         matches = Fixture.objects.filter(
-            status_long='scheduled',
+            status_long='Not Started',
             date__gte=timezone.now()
         )
     
@@ -881,7 +881,7 @@ def my_predictions(request):
     
     # Calculate statistics
     total_predictions = predictions.count()
-    finished_predictions = predictions.filter(match__status_long='finished')
+    finished_predictions = predictions.filter(match__status_long='Match Finished')
     # Calculate correct predictions manually since result is a property
     correct_predictions = 0
     for prediction in finished_predictions:

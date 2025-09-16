@@ -195,7 +195,7 @@ class FixtureAdmin(admin.ModelAdmin):
     def calculate_points_for_predictions(self, request, queryset):
         """Calculate points for all predictions of selected matches"""
         total_updated = 0
-        for match in queryset.filter(status_long='finished'):
+        for match in queryset.filter(status_long='Match Finished'):
             for prediction in match.predictions.all():
                 prediction.calculate_points()
                 total_updated += 1
@@ -235,7 +235,7 @@ class MatchPredictAdmin(admin.ModelAdmin):
     predicted_result_display.short_description = 'Prediction'
     
     def actual_result(self, obj):
-        if obj.match.status_long == 'finished':
+        if obj.match.status_long == 'Match Finished':
             result_text = ""
             # Determine result based on goals
             if obj.match.home_goals is not None and obj.match.away_goals is not None:
@@ -252,7 +252,7 @@ class MatchPredictAdmin(admin.ModelAdmin):
     actual_result.short_description = 'Actual Result'
     
     def is_correct_display(self, obj):
-        if obj.match.status_long == 'finished':
+        if obj.match.status_long == 'Match Finished':
             if obj.is_correct:
                 return format_html('<span style="color: green;">✓ Correct</span>')
             else:

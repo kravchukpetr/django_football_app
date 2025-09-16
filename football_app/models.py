@@ -142,6 +142,32 @@ class Team(models.Model):
 class Fixture(models.Model):
     """Model representing a football match result"""
 
+    FIXTURE_STATUS_CHOICES = [
+    ("TBD",	"Time To Be Defined",	"Scheduled",	"Scheduled but date and time are not known"),
+    ("NS",	"Not Started",	"Scheduled",	""),
+    ("1H",	"First Half, Kick Off",	"In Play",	"First half in play"),
+    ('HT',	'Halftime',	'In Play',	'Finished in the regular time'),
+    ("2H",	"Second Half, 2nd Half Started",	"In Play",	"Second half in play"),
+    ("ET",	"Extra Time",	"In Play",	"Extra time in play"),
+    ("BT",	"Break Time",	"In Play",	"Break during extra time"),
+    ("P",	"Penalty In Progress",	"In Play",	"Penaly played after extra time"),
+    ("SUSP",	"Match Suspended",	"In Play",	"Suspended by referee's decision, may be rescheduled another day"),
+    ("INT",	"Match Interrupted",	"In Play",	"Interrupted by referee's decision, should resume in a few minutes"),
+    ("FT",	"Match Finished",	"Finished",	"Finished in the regular time"),
+    ("AET",	"Match Finished",	"Finished",	"Finished after extra time without going to the penalty shootout"),
+    ("PEN",	"Match Finished",	"Finished",	"Finished after the penalty shootout"),
+    ("PST",	"Match Postponed",	"Postponed",	"Postponed to another day, once the new date and time is known the status will change to Not Started"),
+    ("CANC",	"Match Cancelled",	"Cancelled",	"Cancelled, match will not be played"),
+    ("ABD",	"Match Abandoned",	"Abandoned",	"Abandoned for various reasons (Bad Weather, Safety, Floodlights, Playing Staff Or Referees), Can be rescheduled or not, it depends on the competition"),
+    ("AWD",	"Technical Loss",	"Not Played",	""),
+    ("WO",	"WalkOver",	"Not Played",	"Victory by forfeit or absence of competitor"),
+    ("LIVE",	"In Progress",	"In Play",	"Used in very rare cases. It indicates a fixture in progress but the data indicating the half-time or elapsed time are not available"),
+]
+
+    # Extract choices for status_long and status_short fields
+    STATUS_LONG_CHOICES = [(choice[1], choice[1]) for choice in FIXTURE_STATUS_CHOICES]
+    STATUS_SHORT_CHOICES = [(choice[0], choice[0]) for choice in FIXTURE_STATUS_CHOICES]
+
     date = models.DateTimeField()
     referee = models.CharField(max_length=100, blank=True, null=True)
     timezone = models.CharField(max_length=20, blank=True, null=True)
@@ -149,8 +175,8 @@ class Fixture(models.Model):
     venue_id = models.PositiveIntegerField(blank=True, null=True)
     venue_name = models.CharField(max_length=100, blank=True, null=True)
     venue_city = models.CharField(max_length=100, blank=True, null=True)
-    status_long  = models.CharField(max_length=100, blank=True, null=True)
-    status_short = models.CharField(max_length=100, blank=True, null=True)
+    status_long  = models.CharField(max_length=100, blank=True, null=True, choices=STATUS_LONG_CHOICES)
+    status_short = models.CharField(max_length=100, blank=True, null=True, choices=STATUS_SHORT_CHOICES)
     status_elapsed = models.PositiveIntegerField(blank=True, null=True)
     status_extra = models.CharField(max_length=100, blank=True, null=True)
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches')
@@ -188,7 +214,7 @@ class Fixture(models.Model):
 
     @property
     def is_finished(self):
-        return self.status_long == 'finished'
+        return self.status_long == 'Match Finished'
 
     def get_status_display(self):
         """Return the display value for status_long field"""
@@ -237,7 +263,7 @@ class MatchPredict(models.Model):
 
     def save(self, *args, **kwargs):
         # Prevent predictions on finished or live matches
-        if self.match.status_long in ['finished', 'live'] and not self.pk:
+        if self.match.status_long in ['Match Finished', 'In Progress', 'First Half, Kick Off', 'Second Half, 2nd Half Started', 'Extra Time', 'Penalty In Progress'] and not self.pk:
             raise ValueError("Cannot create predictions for finished or live matches")
         super().save(*args, **kwargs)
 
@@ -364,7 +390,7 @@ class GroupMembership(models.Model):
         predictions = MatchPredict.objects.filter(
             user=self.user,
             match__league__in=group_leagues,
-            match__status_long='finished'
+            match__status_long='Match Finished'
         )
         
         self.total_predictions = predictions.count()
