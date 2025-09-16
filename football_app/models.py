@@ -153,7 +153,6 @@ class Fixture(models.Model):
     status_short = models.CharField(max_length=100, blank=True, null=True)
     status_elapsed = models.PositiveIntegerField(blank=True, null=True)
     status_extra = models.CharField(max_length=100, blank=True, null=True)
-    league_external_id = models.PositiveIntegerField(blank=True, null=True)
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='matches')
     country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='matches')
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches', null=True, blank=True)
@@ -162,8 +161,8 @@ class Fixture(models.Model):
     
     home_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='home_matches')
     away_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='away_matches')
-    home_team_winner = models.BooleanField(default=True)
-    away_team_winner = models.BooleanField(default=True)
+    home_team_winner = models.BooleanField(default=True,blank=True, null=True)
+    away_team_winner = models.BooleanField(default=True, blank=True, null=True)
     
     home_goals = models.PositiveIntegerField(blank=True, null=True)
     away_goals = models.PositiveIntegerField(blank=True, null=True)
@@ -175,7 +174,6 @@ class Fixture(models.Model):
     away_score_extratime = models.PositiveIntegerField(blank=True, null=True)
     home_score_penalty = models.PositiveIntegerField(blank=True, null=True)
     away_score_penalty = models.PositiveIntegerField(blank=True, null=True)
-    status = models.CharField(max_length=20, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -190,7 +188,11 @@ class Fixture(models.Model):
 
     @property
     def is_finished(self):
-        return self.status == 'finished'
+        return self.status_long == 'finished'
+
+    def get_status_display(self):
+        """Return the display value for status_long field"""
+        return self.status_long or 'Unknown'
 
     @property
     def result(self):
@@ -235,7 +237,7 @@ class MatchPredict(models.Model):
 
     def save(self, *args, **kwargs):
         # Prevent predictions on finished or live matches
-        if self.match.status in ['finished', 'live'] and not self.pk:
+        if self.match.status_long in ['finished', 'live'] and not self.pk:
             raise ValueError("Cannot create predictions for finished or live matches")
         super().save(*args, **kwargs)
 
@@ -362,7 +364,7 @@ class GroupMembership(models.Model):
         predictions = MatchPredict.objects.filter(
             user=self.user,
             match__league__in=group_leagues,
-            match__status='finished'
+            match__status_long='finished'
         )
         
         self.total_predictions = predictions.count()
@@ -492,7 +494,7 @@ class UserProfile(models.Model):
 
     def update_stats(self):
         """Update user statistics based on predictions"""
-        predictions = MatchPredict.objects.filter(user=self.user, match__status='finished')
+        predictions = MatchPredict.objects.filter(user=self.user, match__status_long='finished')
         self.total_predictions = predictions.count()
         # Calculate correct predictions manually since result is a property
         correct_count = 0

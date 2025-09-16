@@ -9,7 +9,7 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'league_list' %}">Leagues</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'league_detail' team.league.id %}">{{ team.league.name }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'league_detail' team_league.id %}">{{ team_league.name }}</a></li>
                 <li class="breadcrumb-item active">{{ team.name }}</li>
             </ol>
         </nav>
@@ -24,7 +24,7 @@
                     <img src="{{ team.logo_image }}" alt="{{ team.name }}" style="width: 48px; height: auto;" class="me-3">
                 {% endif %}
                 {{ team.name }}
-                <small class="text-muted">{{ team.league.name }}</small>
+                <small class="text-muted">{{ team_league.name }}</small>
             </h1>
             
             <div class="d-flex gap-2">
@@ -56,7 +56,7 @@
                 </div>
                 {% endif %}
                 
-                <a href="{% url 'league_detail' team.league.id %}{% if selected_season %}?season={{ selected_season.id }}{% endif %}" class="btn btn-outline-secondary">
+                <a href="{% url 'league_detail' team_league.id %}{% if selected_season %}?season={{ selected_season.id }}{% endif %}" class="btn btn-outline-secondary">
                     <i class="fas fa-table"></i> League Standings
                 </a>
             </div>
@@ -198,26 +198,26 @@
                                     </small>
                                 </div>
                                 <div class="text-end">
-                                    <span class="match-result">{{ match.home_score }}-{{ match.away_score }}</span>
+                                    <span class="match-result">{{ match.home_goals }}-{{ match.away_goals }}</span>
                                     {% if match.home_team == team %}
-                                        {% if match.home_score > match.away_score %}
+                                        {% if match.home_goals > match.away_goals %}
                                             <span class="badge bg-success ms-1">W</span>
-                                        {% elif match.home_score < match.away_score %}
+                                        {% elif match.home_goals < match.away_goals %}
                                             <span class="badge bg-danger ms-1">L</span>
                                         {% else %}
                                             <span class="badge bg-warning ms-1">D</span>
                                         {% endif %}
                                     {% else %}
-                                        {% if match.away_score > match.home_score %}
+                                        {% if match.away_goals > match.home_goals %}
                                             <span class="badge bg-success ms-1">W</span>
-                                        {% elif match.away_score < match.home_score %}
+                                        {% elif match.away_goals < match.home_goals %}
                                             <span class="badge bg-danger ms-1">L</span>
                                         {% else %}
                                             <span class="badge bg-warning ms-1">D</span>
                                         {% endif %}
                                     {% endif %}
                                     <br>
-                                    <small class="text-muted">{{ match.match_date|date:"M d" }}</small>
+                                    <small class="text-muted">{{ match.date|date:"M d" }}</small>
                                 </div>
                             </div>
                         </div>
@@ -264,7 +264,7 @@
                                         {% if match.home_team == team %}HOME{% else %}AWAY{% endif %}
                                     </span>
                                     <br>
-                                    <small class="text-muted">{{ match.match_date|date:"M d, H:i" }}</small>
+                                    <small class="text-muted">{{ match.date|date:"M d, H:i" }}</small>
                                 </div>
                             </div>
                         </div>
@@ -304,7 +304,7 @@
                         <tbody>
                             {% for match in all_matches %}
                             <tr>
-                                <td>{{ match.match_date|date:"M d, Y" }}</td>
+                                <td>{{ match.date|date:"M d, Y" }}</td>
                                 <td>
                                     {% if match.home_team == team %}
                                         <strong>{{ match.home_team }}</strong> vs {{ match.away_team }}
@@ -315,31 +315,31 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if match.status == 'finished' %}
-                                        <span class="match-result">{{ match.home_score }}-{{ match.away_score }}</span>
+                                    {% if match.status_long == 'finished' %}
+                                        <span class="match-result">{{ match.home_goals }}-{{ match.away_goals }}</span>
                                         {% if match.home_team == team %}
-                                            {% if match.home_score > match.away_score %}
+                                            {% if match.home_goals > match.away_goals %}
                                                 <span class="badge bg-success ms-1">W</span>
-                                            {% elif match.home_score < match.away_score %}
+                                            {% elif match.home_goals < match.away_goals %}
                                                 <span class="badge bg-danger ms-1">L</span>
                                             {% else %}
                                                 <span class="badge bg-warning ms-1">D</span>
                                             {% endif %}
                                         {% else %}
-                                            {% if match.away_score > match.home_score %}
+                                            {% if match.away_goals > match.home_goals %}
                                                 <span class="badge bg-success ms-1">W</span>
-                                            {% elif match.away_score < match.home_score %}
+                                            {% elif match.away_goals < match.home_goals %}
                                                 <span class="badge bg-danger ms-1">L</span>
                                             {% else %}
                                                 <span class="badge bg-warning ms-1">D</span>
                                             {% endif %}
                                         {% endif %}
                                     {% else %}
-                                        <span class="text-muted">{{ match.match_date|date:"H:i" }}</span>
+                                        <span class="text-muted">{{ match.date|date:"H:i" }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="badge {% if match.status == 'finished' %}bg-success{% elif match.status == 'live' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    <span class="badge {% if match.status_long == 'finished' %}bg-success{% elif match.status_long == 'live' %}bg-warning{% else %}bg-secondary{% endif %}">
                                         {{ match.get_status_display }}
                                     </span>
                                 </td>

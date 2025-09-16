@@ -31,7 +31,7 @@
                     <div class="text-muted">
                         <i class="fas fa-trophy"></i> {{ match.league.name }}
                         <br>
-                        <i class="fas fa-clock"></i> {{ match.match_date|date:"l, F d, Y \a\t H:i" }}
+                        <i class="fas fa-clock"></i> {{ match.date|date:"l, F d, Y \a\t H:i" }}
                         {% if match.venue %}
                             <br>
                             <i class="fas fa-map-marker-alt"></i> {{ match.venue }}

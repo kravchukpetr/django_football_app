@@ -84,8 +84,8 @@
                         {% endif %}
                         <h6>{{ profile.favorite_team.name }}</h6>
                         <small class="text-muted">{{ profile.favorite_team.country.name }}</small>
-                        {% if profile.favorite_team.league %}
-                            <br><small class="text-muted">{{ profile.favorite_team.league.name }}</small>
+                        {% if favorite_team_league %}
+                            <br><small class="text-muted">{{ favorite_team_league.name }}</small>
                         {% endif %}
                     </div>
                 </div>
@@ -251,7 +251,7 @@
                                 </td>
                                 <td>
                                     {% if prediction.match.is_finished %}
-                                        {{ prediction.match.home_score }}-{{ prediction.match.away_score }}
+                                        {{ prediction.match.home_goals }}-{{ prediction.match.away_goals }}
                                     {% else %}
                                         <span class="badge bg-secondary">{{ prediction.match.get_status_display }}</span>
                                     {% endif %}

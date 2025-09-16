@@ -152,10 +152,10 @@ class TeamAdmin(admin.ModelAdmin):
 
 @admin.register(Fixture)
 class FixtureAdmin(admin.ModelAdmin):
-    list_display = ('match_display', 'league', 'season', 'date', 'score_display', 'status', 'prediction_count')
-    list_filter = ('league', 'season', 'status', 'date', 'created_at')
+    list_display = ('match_display', 'league', 'season', 'date', 'score_display', 'status_long', 'prediction_count')
+    list_filter = ('league', 'season', 'status_long', 'date', 'created_at')
     search_fields = ('home_team__name', 'away_team__name', 'league__name', 'season__name')
-    list_editable = ('status',)
+    list_editable = ('status_long',)
     date_hierarchy = 'date'
     inlines = [MatchPredictInline]
     
@@ -164,7 +164,7 @@ class FixtureAdmin(admin.ModelAdmin):
             'fields': ('home_team', 'away_team', 'league', 'season', 'date', 'round_number')
         }),
         ('Result', {
-            'fields': ('home_goals', 'away_goals', 'home_score_fulltime', 'away_score_fulltime', 'status')
+            'fields': ('home_goals', 'away_goals', 'home_score_fulltime', 'away_score_fulltime', 'status_long')
         }),
         ('Venue', {
             'fields': ('venue_name', 'venue_city', 'referee'),
@@ -195,7 +195,7 @@ class FixtureAdmin(admin.ModelAdmin):
     def calculate_points_for_predictions(self, request, queryset):
         """Calculate points for all predictions of selected matches"""
         total_updated = 0
-        for match in queryset.filter(status='finished'):
+        for match in queryset.filter(status_long='finished'):
             for prediction in match.predictions.all():
                 prediction.calculate_points()
                 total_updated += 1
@@ -206,7 +206,7 @@ class FixtureAdmin(admin.ModelAdmin):
 @admin.register(MatchPredict)
 class MatchPredictAdmin(admin.ModelAdmin):
     list_display = ('user', 'match_display', 'predicted_result_display', 'actual_result', 'points_earned', 'is_correct_display', 'created_at')
-    list_filter = ('predicted_result', 'match__status', 'match__league', 'created_at')
+    list_filter = ('predicted_result', 'match__status_long', 'match__league', 'created_at')
     search_fields = ('user__username', 'match__home_team__name', 'match__away_team__name')
     readonly_fields = ('points_earned', 'created_at', 'updated_at')
     
@@ -235,7 +235,7 @@ class MatchPredictAdmin(admin.ModelAdmin):
     predicted_result_display.short_description = 'Prediction'
     
     def actual_result(self, obj):
-        if obj.match.status == 'finished':
+        if obj.match.status_long == 'finished':
             result_text = ""
             # Determine result based on goals
             if obj.match.home_goals is not None and obj.match.away_goals is not None:
@@ -248,11 +248,11 @@ class MatchPredictAdmin(admin.ModelAdmin):
                 return f"{result_text} ({obj.match.home_goals}-{obj.match.away_goals})"
             else:
                 return "Unknown"
-        return obj.match.status or "Pending"
+        return obj.match.status_long or "Pending"
     actual_result.short_description = 'Actual Result'
     
     def is_correct_display(self, obj):
-        if obj.match.status == 'finished':
+        if obj.match.status_long == 'finished':
             if obj.is_correct:
                 return format_html('<span style="color: green;">✓ Correct</span>')
             else:

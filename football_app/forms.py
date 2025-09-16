@@ -94,11 +94,11 @@ class MatchPredictionForm(forms.ModelForm):
 
         # Validate that match is still open for predictions
         if self.match:
-            if self.match.status in ['finished', 'live']:
+            if self.match.status_long in ['finished', 'live']:
                 raise ValidationError("Cannot make predictions for finished or live matches.")
             
             # Check if prediction deadline has passed (e.g., 1 hour before match)
-            if self.match.match_date <= timezone.now():
+            if self.match.date <= timezone.now():
                 raise ValidationError("Prediction deadline has passed for this match.")
 
         return cleaned_data
@@ -183,10 +183,10 @@ class BulkPredictionForm(forms.Form):
                 continue
             
             # Validate that match is still open for predictions
-            if match.status in ['finished', 'live']:
+            if match.status_long in ['finished', 'live']:
                 raise ValidationError(f"Cannot make predictions for {match} - match is {match.get_status_display().lower()}.")
             
-            if match.match_date <= timezone.now():
+            if match.date <= timezone.now():
                 raise ValidationError(f"Prediction deadline has passed for {match}.")
             
             # If result is provided, it's required

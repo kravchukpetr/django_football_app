@@ -15,21 +15,36 @@ from .models import (
 from .forms import MatchPredictionForm, UserSignInForm, UserSignUpForm, CreateGroupForm, GroupInvitationForm
 
 
+def get_team_league(team):
+    """Get the primary league for a team based on their matches"""
+    try:
+        # Get the most recent league from team's matches
+        recent_match = Fixture.objects.filter(
+            Q(home_team=team) | Q(away_team=team)
+        ).select_related('league').order_by('-date').first()
+        
+        if recent_match:
+            return recent_match.league
+        return None
+    except:
+        return None
+
+
 def home(request):
     """Home page with overview of recent matches and predictions"""
     # Get current seasons for all leagues
     current_seasons = Season.objects.filter(is_current=True).select_related('league', 'league__country')
     
     recent_matches = Fixture.objects.filter(
-        status='finished',
+        status_long='finished',
         season__in=current_seasons
-    ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('-match_date')[:20]
+    ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('-date')[:20]
     
     upcoming_matches = Fixture.objects.filter(
-        status='scheduled',
-        match_date__gte=timezone.now(),
+        status_long='scheduled',
+        date__gte=timezone.now(),
         season__in=current_seasons
-    ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('match_date')[:20]
+    ).select_related('home_team', 'away_team', 'league', 'league__country', 'season').order_by('date')[:20]
     
     # Group recent matches by league
     recent_matches_by_league = {}
@@ -144,75 +159,78 @@ def league_detail(request, league_id):
     recent_matches = Fixture.objects.filter(
         league=league,
         season=selected_season,
-        status='finished'
-    ).select_related('home_team', 'away_team', 'season').order_by('-match_date')[:10]
+        status_long='finished'
+    ).select_related('home_team', 'away_team', 'season').order_by('-date')[:10]
     
     upcoming_matches = Fixture.objects.filter(
         league=league,
         season=selected_season,
-        status='scheduled',
-        match_date__gte=timezone.now()
-    ).select_related('home_team', 'away_team', 'season').order_by('match_date')[:10]
+        status_long='scheduled',
+        date__gte=timezone.now()
+    ).select_related('home_team', 'away_team', 'season').order_by('date')[:10]
     
-    # Calculate standings
-    teams = Team.objects.filter(league=league)
+    # Calculate standings - get teams that have played in this league
+    team_ids = set()
+    team_ids.update(Fixture.objects.filter(league=league, season=selected_season).values_list('home_team_id', flat=True))
+    team_ids.update(Fixture.objects.filter(league=league, season=selected_season).values_list('away_team_id', flat=True))
+    teams = Team.objects.filter(id__in=team_ids)
     standings = []
     
     for team in teams:
         # Get finished matches for this team in the selected season
         home_matches = Fixture.objects.filter(
-            home_team=team, league=league, season=selected_season, status='finished'
+            home_team=team, league=league, season=selected_season, status_long='finished'
         )
         away_matches = Fixture.objects.filter(
-            away_team=team, league=league, season=selected_season, status='finished'
+            away_team=team, league=league, season=selected_season, status_long='finished'
         )
         
         played = home_matches.count() + away_matches.count()
-        wins = (home_matches.filter(home_score__gt=F('away_score')).count() + 
-                away_matches.filter(away_score__gt=F('home_score')).count())
-        draws = (home_matches.filter(home_score=F('away_score')).count() + 
-                 away_matches.filter(away_score=F('home_score')).count())
+        wins = (home_matches.filter(home_goals__gt=F('away_goals')).count() + 
+                away_matches.filter(away_goals__gt=F('home_goals')).count())
+        draws = (home_matches.filter(home_goals=F('away_goals')).count() + 
+                 away_matches.filter(away_goals=F('home_goals')).count())
         losses = played - wins - draws
         
         # Calculate goals manually to avoid CombinedExpression issues
         goals_for = 0
         goals_against = 0
         
-        # Home matches - team's goals are home_score
+        # Home matches - team's goals are home_goals
         for match in home_matches:
-            if match.home_score is not None:
-                goals_for += match.home_score
-            if match.away_score is not None:
-                goals_against += match.away_score
+            if match.home_goals is not None:
+                goals_for += match.home_goals
+            if match.away_goals is not None:
+                goals_against += match.away_goals
         
-        # Away matches - team's goals are away_score
+        # Away matches - team's goals are away_goals
         for match in away_matches:
-            if match.away_score is not None:
-                goals_for += match.away_score
-            if match.home_score is not None:
-                goals_against += match.home_score
+            if match.away_goals is not None:
+                goals_for += match.away_goals
+            if match.home_goals is not None:
+                goals_against += match.home_goals
         
         goal_difference = goals_for - goals_against
         points = wins * 3 + draws
         
         # Calculate recent form (last 5 matches)
         all_team_matches = list(home_matches) + list(away_matches)
-        all_team_matches.sort(key=lambda x: x.match_date, reverse=True)
+        all_team_matches.sort(key=lambda x: x.date, reverse=True)
         last_5_matches = all_team_matches[:5]
         
         form = []
         for match in last_5_matches:
             if match.home_team == team:
-                if match.home_score > match.away_score:
+                if match.home_goals > match.away_goals:
                     form.append('W')
-                elif match.home_score < match.away_score:
+                elif match.home_goals < match.away_goals:
                     form.append('L')
                 else:
                     form.append('D')
             else:  # away match
-                if match.away_score > match.home_score:
+                if match.away_goals > match.home_goals:
                     form.append('W')
-                elif match.away_score < match.home_score:
+                elif match.away_goals < match.home_goals:
                     form.append('L')
                 else:
                     form.append('D')
@@ -271,7 +289,7 @@ def league_season_results(request, league_id):
     matches = Fixture.objects.filter(
         league=league,
         season=selected_season
-    ).select_related('home_team', 'away_team').order_by('round_number', 'match_date')
+    ).select_related('home_team', 'away_team').order_by('round_number', 'date')
     
     # Group matches by round/tour
     tours = {}
@@ -286,7 +304,7 @@ def league_season_results(request, league_id):
             }
         tours[round_num]['matches'].append(match)
         tours[round_num]['total_count'] += 1
-        if match.status == 'finished':
+        if match.status_long == 'finished':
             tours[round_num]['finished_count'] += 1
     
     # Sort tours by round number
@@ -294,8 +312,8 @@ def league_season_results(request, league_id):
     
     # Calculate some statistics
     total_matches = matches.count()
-    finished_matches = matches.filter(status='finished').count()
-    scheduled_matches = matches.filter(status='scheduled').count()
+    finished_matches = matches.filter(status_long='finished').count()
+    scheduled_matches = matches.filter(status_long='scheduled').count()
     
     context = {
         'league': league,
@@ -321,14 +339,16 @@ def team_detail(request, team_id):
             selected_season = Season.objects.get(id=season_id)
         except Season.DoesNotExist:
             # Try to get current season for team's league
-            if team.league:
-                selected_season = Season.get_current_season(league=team.league)
+            team_league = get_team_league(team)
+            if team_league:
+                selected_season = Season.get_current_season(league=team_league)
             else:
                 selected_season = Season.get_current_season()
     else:
         # Try to get current season for team's league
-        if team.league:
-            selected_season = Season.get_current_season(league=team.league)
+        team_league = get_team_league(team)
+        if team_league:
+            selected_season = Season.get_current_season(league=team_league)
         else:
             selected_season = Season.get_current_season()
     
@@ -345,30 +365,30 @@ def team_detail(request, team_id):
     home_matches = Fixture.objects.filter(
         home_team=team,
         season=selected_season
-    ).select_related('away_team', 'league', 'season').order_by('-match_date')
+    ).select_related('away_team', 'league', 'season').order_by('-date')
     
     away_matches = Fixture.objects.filter(
         away_team=team,
         season=selected_season
-    ).select_related('home_team', 'league', 'season').order_by('-match_date')
+    ).select_related('home_team', 'league', 'season').order_by('-date')
     
     # Combine and sort all matches
     all_matches = list(home_matches) + list(away_matches)
-    all_matches.sort(key=lambda x: x.match_date, reverse=True)
+    all_matches.sort(key=lambda x: x.date, reverse=True)
     
     # Calculate team statistics for the selected season
-    finished_home_matches = home_matches.filter(status='finished')
-    finished_away_matches = away_matches.filter(status='finished')
+    finished_home_matches = home_matches.filter(status_long='finished')
+    finished_away_matches = away_matches.filter(status_long='finished')
     
     total_matches = finished_home_matches.count() + finished_away_matches.count()
     
     # Calculate wins, draws, losses
-    home_wins = finished_home_matches.filter(home_score__gt=F('away_score')).count()
-    away_wins = finished_away_matches.filter(away_score__gt=F('home_score')).count()
+    home_wins = finished_home_matches.filter(home_goals__gt=F('away_goals')).count()
+    away_wins = finished_away_matches.filter(away_goals__gt=F('home_goals')).count()
     total_wins = home_wins + away_wins
     
-    home_draws = finished_home_matches.filter(home_score=F('away_score')).count()
-    away_draws = finished_away_matches.filter(away_score=F('home_score')).count()
+    home_draws = finished_home_matches.filter(home_goals=F('away_goals')).count()
+    away_draws = finished_away_matches.filter(away_goals=F('home_goals')).count()
     total_draws = home_draws + away_draws
     
     total_losses = total_matches - total_wins - total_draws
@@ -377,44 +397,44 @@ def team_detail(request, team_id):
     goals_for = 0
     goals_against = 0
     
-    # Home matches - team's goals are home_score
+    # Home matches - team's goals are home_goals
     for match in finished_home_matches:
-        if match.home_score is not None:
-            goals_for += match.home_score
-        if match.away_score is not None:
-            goals_against += match.away_score
+        if match.home_goals is not None:
+            goals_for += match.home_goals
+        if match.away_goals is not None:
+            goals_against += match.away_goals
     
-    # Away matches - team's goals are away_score
+    # Away matches - team's goals are away_goals
     for match in finished_away_matches:
-        if match.away_score is not None:
-            goals_for += match.away_score
-        if match.home_score is not None:
-            goals_against += match.home_score
+        if match.away_goals is not None:
+            goals_for += match.away_goals
+        if match.home_goals is not None:
+            goals_against += match.home_goals
     
     goal_difference = goals_for - goals_against
     points = total_wins * 3 + total_draws
     
     # Get recent matches (last 10)
-    recent_matches = [match for match in all_matches if match.status == 'finished'][:10]
+    recent_matches = [match for match in all_matches if match.status_long == 'finished'][:10]
     
     # Get upcoming matches
-    upcoming_matches = [match for match in all_matches if match.status == 'scheduled' and match.match_date >= timezone.now()][:10]
+    upcoming_matches = [match for match in all_matches if match.status_long == 'scheduled' and match.date >= timezone.now()][:10]
     
     # Calculate form (last 5 matches)
     last_5_matches = recent_matches[:5]
     form = []
     for match in last_5_matches:
         if match.home_team == team:
-            if match.home_score > match.away_score:
+            if match.home_goals > match.away_goals:
                 form.append('W')
-            elif match.home_score < match.away_score:
+            elif match.home_goals < match.away_goals:
                 form.append('L')
             else:
                 form.append('D')
         else:  # away match
-            if match.away_score > match.home_score:
+            if match.away_goals > match.home_goals:
                 form.append('W')
-            elif match.away_score < match.home_score:
+            elif match.away_goals < match.home_goals:
                 form.append('L')
             else:
                 form.append('D')
@@ -437,8 +457,12 @@ def team_detail(request, team_id):
         'form': form,
     }
     
+    # Get team's league
+    team_league = get_team_league(team)
+    
     context = {
         'team': team,
+        'team_league': team_league,
         'selected_season': selected_season,
         'available_seasons': available_seasons,
         'all_matches': all_matches[:20],  # Limit to 20 most recent matches
@@ -455,7 +479,7 @@ def user_list(request):
     users = User.objects.select_related('profile').annotate(
         total_predictions=Count('predictions'),
         correct_predictions=Count('predictions', filter=Q(
-            predictions__match__status='finished'
+            predictions__match__status_long='finished'
         ))
     ).order_by('-profile__total_points')[:50]  # Top 50 users
     
@@ -484,7 +508,7 @@ def user_detail(request, user_id):
     
     # Statistics by league
     league_stats = {}
-    for prediction in MatchPredict.objects.filter(user=user, match__status='finished'):
+    for prediction in MatchPredict.objects.filter(user=user, match__status_long='finished'):
         league = prediction.match.league
         if league not in league_stats:
             league_stats[league] = {
@@ -500,8 +524,8 @@ def user_detail(request, user_id):
         if prediction.is_correct:
             league_stats[league]['correct'] += 1
         
-        if (prediction.predicted_home_score == prediction.match.home_score and 
-            prediction.predicted_away_score == prediction.match.away_score):
+        if (prediction.predicted_home_score == prediction.match.home_goals and 
+            prediction.predicted_away_score == prediction.match.away_goals):
             league_stats[league]['exact'] += 1
     
     # Calculate accuracy for each league
@@ -509,9 +533,15 @@ def user_detail(request, user_id):
         stats['accuracy'] = round((stats['correct'] / stats['total']) * 100, 2) if stats['total'] > 0 else 0
         stats['exact_percentage'] = round((stats['exact'] / stats['total']) * 100, 2) if stats['total'] > 0 else 0
     
+    # Get favorite team's league if exists
+    favorite_team_league = None
+    if profile.favorite_team:
+        favorite_team_league = get_team_league(profile.favorite_team)
+    
     context = {
         'profile_user': user,
         'profile': profile,
+        'favorite_team_league': favorite_team_league,
         'recent_predictions': recent_predictions,
         'group_memberships': group_memberships,
         'league_stats': league_stats,
@@ -635,16 +665,16 @@ def prediction_center(request):
         matches = Fixture.objects.filter(
             league__in=leagues,
             season=selected_season,
-            status='scheduled',
-            match_date__gte=timezone.now()
-        ).select_related('home_team', 'away_team', 'league', 'season').order_by('match_date')[:20]
+            status_long='scheduled',
+            date__gte=timezone.now()
+        ).select_related('home_team', 'away_team', 'league', 'season').order_by('date')[:20]
     else:
         # If user is not in any groups, show all upcoming matches
         matches = Fixture.objects.filter(
             season=selected_season,
-            status='scheduled',
-            match_date__gte=timezone.now()
-        ).select_related('home_team', 'away_team', 'league', 'season').order_by('match_date')[:20]
+            status_long='scheduled',
+            date__gte=timezone.now()
+        ).select_related('home_team', 'away_team', 'league', 'season').order_by('date')[:20]
     
     # Get existing predictions for these matches
     existing_predictions = MatchPredict.objects.filter(
@@ -659,8 +689,8 @@ def prediction_center(request):
     for match in matches:
         match.user_prediction = predictions_dict.get(match.id)
         match.can_predict = (
-            match.status == 'scheduled' and 
-            match.match_date > timezone.now()
+            match.status_long == 'scheduled' and 
+            match.date > timezone.now()
         )
     
     context = {
@@ -679,11 +709,11 @@ def make_prediction(request, match_id):
     match = get_object_or_404(Fixture, id=match_id)
     
     # Check if user can make predictions for this match
-    if match.status in ['finished', 'live']:
+    if match.status_long in ['finished', 'live']:
         messages.error(request, f"Cannot make predictions for {match.get_status_display().lower()} matches.")
         return redirect('prediction_center')
     
-    if match.match_date <= timezone.now():
+    if match.date <= timezone.now():
         messages.error(request, "Prediction deadline has passed for this match.")
         return redirect('prediction_center')
     
@@ -742,13 +772,13 @@ def bulk_predictions(request):
         leagues = League.objects.filter(prediction_groups__in=user_groups).distinct()
         matches = Fixture.objects.filter(
             league__in=leagues,
-            status='scheduled',
-            match_date__gte=timezone.now()
+            status_long='scheduled',
+            date__gte=timezone.now()
         )
     else:
         matches = Fixture.objects.filter(
-            status='scheduled',
-            match_date__gte=timezone.now()
+            status_long='scheduled',
+            date__gte=timezone.now()
         )
     
     # Apply filters
@@ -757,16 +787,16 @@ def bulk_predictions(request):
             matches = matches.filter(league__in=filter_form.cleaned_data['league'])
         
         if filter_form.cleaned_data.get('date_from'):
-            matches = matches.filter(match_date__date__gte=filter_form.cleaned_data['date_from'])
+            matches = matches.filter(date__date__gte=filter_form.cleaned_data['date_from'])
         
         if filter_form.cleaned_data.get('date_to'):
-            matches = matches.filter(match_date__date__lte=filter_form.cleaned_data['date_to'])
+            matches = matches.filter(date__date__lte=filter_form.cleaned_data['date_to'])
         
         if filter_form.cleaned_data.get('show_only_unpredicted'):
             predicted_matches = MatchPredict.objects.filter(user=request.user).values_list('match_id', flat=True)
             matches = matches.exclude(id__in=predicted_matches)
     
-    matches = matches.select_related('home_team', 'away_team', 'league').order_by('match_date')[:50]
+    matches = matches.select_related('home_team', 'away_team', 'league').order_by('date')[:50]
     
     if request.method == 'POST':
         bulk_form = BulkPredictionForm(
@@ -839,19 +869,19 @@ def my_predictions(request):
             predictions = predictions.filter(match__league__in=filter_form.cleaned_data['league'])
         
         if filter_form.cleaned_data.get('status'):
-            predictions = predictions.filter(match__status__in=filter_form.cleaned_data['status'])
+            predictions = predictions.filter(match__status_long__in=filter_form.cleaned_data['status'])
         
         if filter_form.cleaned_data.get('date_from'):
-            predictions = predictions.filter(match__match_date__date__gte=filter_form.cleaned_data['date_from'])
+            predictions = predictions.filter(match__date__date__gte=filter_form.cleaned_data['date_from'])
         
         if filter_form.cleaned_data.get('date_to'):
-            predictions = predictions.filter(match__match_date__date__lte=filter_form.cleaned_data['date_to'])
+            predictions = predictions.filter(match__date__date__lte=filter_form.cleaned_data['date_to'])
     
-    predictions = predictions.order_by('-match__match_date')
+    predictions = predictions.order_by('-match__date')
     
     # Calculate statistics
     total_predictions = predictions.count()
-    finished_predictions = predictions.filter(match__status='finished')
+    finished_predictions = predictions.filter(match__status_long='finished')
     # Calculate correct predictions manually since result is a property
     correct_predictions = 0
     for prediction in finished_predictions:

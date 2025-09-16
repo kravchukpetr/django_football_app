@@ -53,9 +53,9 @@
                                         </small>
                                     </div>
                                     <div class="text-end">
-                                        <span class="match-result">{{ match.home_score }}-{{ match.away_score }}</span>
+                                        <span class="match-result">{{ match.home_goals }}-{{ match.away_goals }}</span>
                                         <br>
-                                        <small class="text-muted">{{ match.match_date|date:"M d" }}</small>
+                                        <small class="text-muted">{{ match.date|date:"M d" }}</small>
                                     </div>
                                 </div>
                             </div>
@@ -107,7 +107,7 @@
                                         </small>
                                     </div>
                                     <div class="text-end">
-                                        <span class="badge bg-primary">{{ match.match_date|date:"M d, H:i" }}</span>
+                                        <span class="badge bg-primary">{{ match.date|date:"M d, H:i" }}</span>
                                     </div>
                                 </div>
                             </div>

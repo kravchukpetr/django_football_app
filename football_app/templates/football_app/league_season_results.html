@@ -146,7 +146,7 @@
                         <div class="row">
                             {% for match in tour.matches %}
                             <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="card {% if match.status == 'finished' %}border-success{% elif match.status == 'live' %}border-warning{% else %}border-light{% endif %}">
+                                <div class="card {% if match.status_long == 'finished' %}border-success{% elif match.status_long == 'live' %}border-warning{% else %}border-light{% endif %}">
                                     <div class="card-body">
                                         <div class="text-center">
                                             <div class="row align-items-center">
@@ -157,9 +157,9 @@
                                                     <strong>{{ match.home_team.short_name|default:match.home_team.name }}</strong>
                                                 </div>
                                                 <div class="col-2 text-center">
-                                                    {% if match.status == 'finished' %}
-                                                        <span class="match-result fs-5">{{ match.home_score }}-{{ match.away_score }}</span>
-                                                    {% elif match.status == 'live' %}
+                                                    {% if match.status_long == 'finished' %}
+                                                        <span class="match-result fs-5">{{ match.home_goals }}-{{ match.away_goals }}</span>
+                                                    {% elif match.status_long == 'live' %}
                                                         <span class="badge bg-warning">LIVE</span>
                                                     {% else %}
                                                         <span class="text-muted">vs</span>
@@ -176,7 +176,7 @@
                                         
                                         <div class="text-center mt-2">
                                             <small class="text-muted">
-                                                <i class="fas fa-clock"></i> {{ match.match_date|date:"M d, H:i" }}
+                                                <i class="fas fa-clock"></i> {{ match.date|date:"M d, H:i" }}
                                             </small>
                                             {% if match.venue %}
                                                 <br>
@@ -186,20 +186,20 @@
                                             {% endif %}
                                         </div>
                                         
-                                        {% if match.status == 'finished' %}
+                                        {% if match.status_long == 'finished' %}
                                         <div class="text-center mt-2">
                                             <span class="badge 
-                                                {% if match.home_score > match.away_score %}
+                                                {% if match.home_goals > match.away_goals %}
                                                     bg-success
-                                                {% elif match.home_score < match.away_score %}
+                                                {% elif match.home_goals < match.away_goals %}
                                                     bg-danger
                                                 {% else %}
                                                     bg-secondary
                                                 {% endif %}
                                             ">
-                                                {% if match.home_score > match.away_score %}
+                                                {% if match.home_goals > match.away_goals %}
                                                     {{ match.home_team.short_name|default:match.home_team.name }} Win
-                                                {% elif match.home_score < match.away_score %}
+                                                {% elif match.home_goals < match.away_goals %}
                                                     {{ match.away_team.short_name|default:match.away_team.name }} Win
                                                 {% else %}
                                                     Draw

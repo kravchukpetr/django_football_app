@@ -137,9 +137,9 @@
                                         <small class="text-muted">{{ match.league.country.name }}</small>
                                     </td>
                                     <td>
-                                        <small>{{ match.match_date|date:"M d" }}</small>
+                                        <small>{{ match.date|date:"M d" }}</small>
                                         <br>
-                                        <small>{{ match.match_date|date:"H:i" }}</small>
+                                        <small>{{ match.date|date:"H:i" }}</small>
                                     </td>
                                     <td>
                                         {{ bulk_form|lookup_dict:match.id|lookup:"result" }}
