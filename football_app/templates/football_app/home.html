@@ -41,7 +41,17 @@
                             <div class="list-group-item">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div>
-                                        <strong><a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team }}</a></strong> vs <strong><a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team }}</a></strong>
+                                        <div class="d-flex align-items-center">
+                                            {% if match.home_team.logo_image %}
+                                                <img src="{{ match.home_team.logo_image }}" alt="{{ match.home_team.name }}" style="width: 18px; height: auto;" class="me-2">
+                                            {% endif %}
+                                            <strong><a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team }}</a></strong>
+                                            <span class="mx-2">vs</span>
+                                            <strong><a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team }}</a></strong>
+                                            {% if match.away_team.logo_image %}
+                                                <img src="{{ match.away_team.logo_image }}" alt="{{ match.away_team.name }}" style="width: 18px; height: auto;" class="ms-2">
+                                            {% endif %}
+                                        </div>
                                         <br>
                                         <small class="text-muted">
                                             {% if match.round_number %}

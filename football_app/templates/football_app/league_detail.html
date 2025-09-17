@@ -161,7 +161,17 @@
                         <div class="list-group-item">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
-                                    <strong>{{ match.home_team }}</strong> vs <strong>{{ match.away_team }}</strong>
+                                    <div class="d-flex align-items-center">
+                                        {% if match.home_team.logo_image %}
+                                            <img src="{{ match.home_team.logo_image }}" alt="{{ match.home_team.name }}" style="width: 20px; height: auto;" class="me-2">
+                                        {% endif %}
+                                        <strong><a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team.name }}</a></strong>
+                                        <span class="mx-2">vs</span>
+                                        <strong><a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team.name }}</a></strong>
+                                        {% if match.away_team.logo_image %}
+                                            <img src="{{ match.away_team.logo_image }}" alt="{{ match.away_team.name }}" style="width: 20px; height: auto;" class="ms-2">
+                                        {% endif %}
+                                    </div>
                                     {% if match.venue %}
                                         <br><small class="text-muted">{{ match.venue }}</small>
                                     {% endif %}

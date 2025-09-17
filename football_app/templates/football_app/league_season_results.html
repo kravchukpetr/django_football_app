@@ -154,7 +154,7 @@
                                                     {% if match.home_team.logo_image %}
                                                         <img src="{{ match.home_team.logo_image }}" alt="{{ match.home_team.name }}" style="width: 24px; height: auto;" class="me-2">
                                                     {% endif %}
-                                                    <strong>{{ match.home_team.short_name|default:match.home_team.name }}</strong>
+                                                    <strong><a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team.short_name|default:match.home_team.name }}</a></strong>
                                                 </div>
                                                 <div class="col-2 text-center">
                                                     {% if match.status_long == 'Match Finished' %}
@@ -166,7 +166,7 @@
                                                     {% endif %}
                                                 </div>
                                                 <div class="col-5 text-start">
-                                                    <strong>{{ match.away_team.short_name|default:match.away_team.name }}</strong>
+                                                    <strong><a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team.short_name|default:match.away_team.name }}</a></strong>
                                                     {% if match.away_team.logo_image %}
                                                         <img src="{{ match.away_team.logo_image }}" alt="{{ match.away_team.name }}" style="width: 24px; height: auto;" class="ms-2">
                                                     {% endif %}
@@ -198,9 +198,9 @@
                                                 {% endif %}
                                             ">
                                                 {% if match.home_goals > match.away_goals %}
-                                                    {{ match.home_team.short_name|default:match.home_team.name }} Win
+                                                    <a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team.short_name|default:match.home_team.name }}</a> Win
                                                 {% elif match.home_goals < match.away_goals %}
-                                                    {{ match.away_team.short_name|default:match.away_team.name }} Win
+                                                    <a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team.short_name|default:match.away_team.name }}</a> Win
                                                 {% else %}
                                                     Draw
                                                 {% endif %}
