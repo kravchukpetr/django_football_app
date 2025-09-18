@@ -9,6 +9,7 @@ db.sqlite3-journal
 media/
 database.env
 migrations/
+postgres_data/
 
 # Virtual Environment
 venv/

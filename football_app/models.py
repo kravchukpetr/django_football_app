@@ -117,7 +117,7 @@ class Team(models.Model):
     name = models.CharField(max_length=100)
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     founded_year = models.PositiveIntegerField(blank=True, null=True)
-    code = models.CharField(max_length=20, blank=True)
+    code = models.CharField(blank=True, null=True, max_length=20, blank=True)
     national = models.BooleanField(default=False)
     logo_image = models.URLField(blank=True, null=True, help_text="URL to team logo")   
     venue_id = models.PositiveIntegerField(blank=True, null=True)
@@ -183,7 +183,7 @@ class Fixture(models.Model):
     country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='matches')
     season = models.ForeignKey(Season, on_delete=models.CASCADE, related_name='matches', null=True, blank=True)
     round_type =  models.CharField(max_length=100, blank=True, null=True, help_text="Type of round/gameweek")
-    round_number = models.PositiveIntegerField(blank=True, null=True, help_text="Match round/gameweek")
+    round_number = models.CharField(blank=True, null=True, help_text="Match round/gameweek/stage")
     
     home_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='home_matches')
     away_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='away_matches')
