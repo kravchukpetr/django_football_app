@@ -117,7 +117,7 @@ class Team(models.Model):
     name = models.CharField(max_length=100)
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True, related_name='teams')
     founded_year = models.PositiveIntegerField(blank=True, null=True)
-    code = models.CharField(blank=True, null=True, max_length=20, blank=True)
+    code = models.CharField(blank=True, null=True, max_length=20)
     national = models.BooleanField(default=False)
     logo_image = models.URLField(blank=True, null=True, help_text="URL to team logo")   
     venue_id = models.PositiveIntegerField(blank=True, null=True)
