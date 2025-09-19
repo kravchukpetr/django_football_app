@@ -11,6 +11,39 @@ from .models import (
 )
 
 
+# Custom admin filters
+class ActiveLeagueFilter(admin.SimpleListFilter):
+    title = 'league'
+    parameter_name = 'league'
+
+    def lookups(self, request, model_admin):
+        """Return only active leagues"""
+        active_leagues = League.objects.filter(is_active=True).order_by('name')
+        return [(league.id, str(league)) for league in active_leagues]
+
+    def queryset(self, request, queryset):
+        """Filter queryset based on selected league"""
+        if self.value():
+            return queryset.filter(league__id=self.value())
+        return queryset
+
+
+class ActiveLeagueSeasonFilter(admin.SimpleListFilter):
+    title = 'season'
+    parameter_name = 'season'
+
+    def lookups(self, request, model_admin):
+        """Return only seasons from active leagues"""
+        active_league_seasons = Season.objects.filter(league__is_active=True).order_by('-start_year', 'league__name')
+        return [(season.id, str(season)) for season in active_league_seasons]
+
+    def queryset(self, request, queryset):
+        """Filter queryset based on selected season"""
+        if self.value():
+            return queryset.filter(season__id=self.value())
+        return queryset
+
+
 # Inline admin classes
 class LeagueInline(admin.TabularInline):
     model = League
@@ -395,7 +428,7 @@ admin.site.register(User, UserAdmin)
 @admin.register(GroupLeagueRound)
 class GroupLeagueRoundAdmin(admin.ModelAdmin):
     list_display = ('group', 'league', 'season', 'round_number', 'created_at')
-    list_filter = ('league', 'season', 'created_at')
+    list_filter = (ActiveLeagueFilter, ActiveLeagueSeasonFilter, 'created_at')
     search_fields = ('group__name', 'league__name', 'round_number')
     
     fieldsets = (
@@ -403,6 +436,14 @@ class GroupLeagueRoundAdmin(admin.ModelAdmin):
             'fields': ('group', 'league', 'season', 'round_number')
         }),
     )
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Filter foreign key fields to show only relevant options"""
+        if db_field.name == "league":
+            kwargs["queryset"] = League.objects.filter(is_active=True)
+        elif db_field.name == "season":
+            kwargs["queryset"] = Season.objects.filter(league__is_active=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(GroupDateSelection) 
