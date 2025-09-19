@@ -642,6 +642,7 @@ def group_detail(request, group_id):
     
     # Get group leagues and flexible selections
     leagues = group.leagues.all().order_by('country__name', 'name')
+    all_leagues = group.get_all_leagues()  # Get leagues from all selection types
     league_rounds = group.group_league_rounds.select_related('league', 'season').order_by('league__name', 'round_number')
     date_selections = group.group_date_selections.prefetch_related('specific_leagues').order_by('match_date')
     
@@ -661,7 +662,8 @@ def group_detail(request, group_id):
         'is_member': is_member,
         'user_membership': user_membership,
         'leaderboard': leaderboard,
-        'leagues': leagues,
+        'leagues': leagues,  # Traditional leagues for backward compatibility
+        'all_leagues': all_leagues,  # All leagues from all selection types
         'league_rounds': league_rounds,
         'date_selections': date_selections,
         'recent_predictions': recent_predictions,

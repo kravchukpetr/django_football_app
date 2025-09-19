@@ -622,12 +622,14 @@ class CreateGroupForm(forms.ModelForm):
         from datetime import datetime
         
         selection_type = self.cleaned_data.get('selection_type')
+        all_group_leagues = set()  # Collect all leagues used in this group
         
         # Save league selections (for leagues and mixed types)
         if selection_type in ['leagues', 'mixed']:
             leagues = self.cleaned_data.get('leagues')
             if leagues:
                 group.leagues.set(leagues)
+                all_group_leagues.update(leagues)
         
         # Save round selections (for rounds and mixed types)
         if selection_type in ['rounds', 'mixed']:
@@ -636,6 +638,9 @@ class CreateGroupForm(forms.ModelForm):
             round_numbers = self.cleaned_data.get('round_numbers')
             
             if round_league and round_season and round_numbers:
+                # Add the round league to the group's leagues
+                all_group_leagues.add(round_league)
+                
                 # Parse round numbers (handle ranges and individual numbers)
                 rounds = []
                 for round_part in round_numbers.split(','):
@@ -672,6 +677,21 @@ class CreateGroupForm(forms.ModelForm):
                     )
                     if date_leagues:
                         date_selection.specific_leagues.set(date_leagues)
+                        all_group_leagues.update(date_leagues)
+                    # If no specific leagues selected for dates, we'll add leagues 
+                    # from matches on those dates later
+        
+        # Update group leagues to include all leagues from all selection types
+        if all_group_leagues:
+            # For pure league selection, we already set it above
+            # For other types, add the additional leagues
+            if selection_type in ['rounds', 'dates']:
+                group.leagues.set(all_group_leagues)
+            elif selection_type == 'mixed':
+                # For mixed, add to existing leagues
+                existing_leagues = set(group.leagues.all())
+                existing_leagues.update(all_group_leagues)
+                group.leagues.set(existing_leagues)
 
 
 class GroupInvitationForm(forms.ModelForm):

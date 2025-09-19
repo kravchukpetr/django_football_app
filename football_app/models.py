@@ -390,6 +390,24 @@ class UserGroup(models.Model):
         
         return all_matches.distinct()
 
+    def get_all_leagues(self):
+        """Get all leagues involved in this group from all selection types"""
+        all_leagues = set()
+        
+        # Add leagues from traditional selection
+        all_leagues.update(self.leagues.all())
+        
+        # Add leagues from round selections
+        for league_round in self.group_league_rounds.all():
+            all_leagues.add(league_round.league)
+        
+        # Add leagues from date selections
+        for date_selection in self.group_date_selections.all():
+            if date_selection.specific_leagues.exists():
+                all_leagues.update(date_selection.specific_leagues.all())
+        
+        return list(all_leagues)
+
 
 class GroupLeagueRound(models.Model):
     """Model for selecting specific rounds of leagues for a group"""

@@ -301,9 +301,6 @@
 
                     <!-- Form Actions -->
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                        <button type="button" class="btn btn-info me-md-2" onclick="toggleSelectionSections(); console.log('Manual toggle called');">
-                            Test Sections
-                        </button>
                         <a href="{% url 'group_list' %}" class="btn btn-secondary me-md-2">
                             <i class="fas fa-arrow-left"></i> Cancel
                         </a>
@@ -326,14 +323,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const roundSeasonSelect = document.getElementById('id_round_season');
     
     // Initialize form
-    console.log('DOM loaded, initializing form...');
-    console.log('Found selection type inputs:', selectionTypeInputs.length);
-    console.log('Found countries select:', !!countriesSelect);
-    console.log('Found leagues select:', !!leaguesSelect);
-    
     // Initialize with a small delay to ensure all elements are rendered
     setTimeout(() => {
-        console.log('Calling initial toggleSelectionSections...');
         toggleSelectionSections();
         updateLeagues(); // Initialize leagues based on current country selection
     }, 100);
@@ -343,14 +334,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedType = document.querySelector('input[name="selection_type"]:checked')?.value;
         const sections = ['leagues-section', 'rounds-section', 'dates-section', 'mixed-section'];
         
-        console.log('Toggle sections called, selected type:', selectedType);
-        
         sections.forEach(sectionId => {
             const section = document.getElementById(sectionId);
             if (section) {
                 section.classList.remove('active');
-            } else {
-                console.error('Section not found:', sectionId);
             }
         });
         
@@ -366,9 +353,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (selectedType === 'mixed') {
             document.getElementById('mixed-section')?.classList.add('active');
         }
-        
-        console.log('Active sections after toggle:', 
-            document.querySelectorAll('.selection-section.active').length);
     }
     
     // Function to update leagues based on selected countries
