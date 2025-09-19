@@ -395,6 +395,66 @@
             </div>
         </div>
 
+        <!-- Upcoming Matches -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-alt"></i> Upcoming Matches</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_matches %}
+                    <div class="list-group list-group-flush">
+                        {% for match in upcoming_matches %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">
+                                        <span class="text-primary">{{ match.home_team }}</span> 
+                                        vs 
+                                        <span class="text-danger">{{ match.away_team }}</span>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-trophy"></i> {{ match.league.name }}
+                                        {% if match.season %}
+                                            - {{ match.season.name }}
+                                        {% endif %}
+                                        {% if match.round_number %}
+                                            - Round {{ match.round_number }}
+                                        {% endif %}
+                                    </small>
+                                    <br>
+                                    <small class="text-info">
+                                        <i class="fas fa-clock"></i> {{ match.date|date:"M j, Y - H:i" }}
+                                    </small>
+                                </div>
+                                {% if is_member %}
+                                    <a href="{% url 'prediction_center' %}?match={{ match.id }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-chart-line"></i> Predict
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if upcoming_matches.count == 20 %}
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> Showing next 20 matches. 
+                                {% if is_member %}
+                                    <a href="{% url 'prediction_center' %}" class="text-decoration-none">View all upcoming matches</a>
+                                {% endif %}
+                            </small>
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-times text-muted mb-3" style="font-size: 2rem;"></i>
+                        <p class="text-muted mb-0">No upcoming matches match this group's criteria.</p>
+                        <small class="text-muted">Check the match selection criteria above or wait for new matches to be scheduled.</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Recent Activity -->
         <div class="card">
             <div class="card-header">

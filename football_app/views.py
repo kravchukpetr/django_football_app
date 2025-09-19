@@ -657,6 +657,14 @@ def group_detail(request, group_id):
         'user', 'match__home_team', 'match__away_team', 'match__league'
     ).order_by('-created_at')[:20]
     
+    # Get upcoming matches for this group
+    upcoming_matches = group_matches.filter(
+        status_long='Not Started',
+        date__gte=timezone.now()
+    ).select_related(
+        'home_team', 'away_team', 'league', 'season'
+    ).order_by('date')[:20]
+    
     context = {
         'group': group,
         'is_member': is_member,
@@ -667,6 +675,7 @@ def group_detail(request, group_id):
         'league_rounds': league_rounds,
         'date_selections': date_selections,
         'recent_predictions': recent_predictions,
+        'upcoming_matches': upcoming_matches,
         'total_matches': group_matches.count() if group_matches else 0,
     }
     return render(request, 'football_app/group_detail.html', context)
