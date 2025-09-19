@@ -83,17 +83,20 @@ class Season(models.Model):
     @classmethod
     def get_current_season(cls, league=None):
         """Get the current active season for a specific league or any league"""
-        try:
-            if league:
-                return cls.objects.get(is_current=True, league=league)
-            else:
-                return cls.objects.get(is_current=True)
-        except cls.DoesNotExist:
-            # If no current season is set, return the most recent one
-            if league:
-                return cls.objects.filter(is_active=True, league=league).first()
-            else:
-                return cls.objects.filter(is_active=True).first()
+        if league:
+            # For a specific league, try to get the current season
+            current_season = cls.objects.filter(is_current=True, league=league).first()
+            if current_season:
+                return current_season
+            # If no current season, return the most recent active one
+            return cls.objects.filter(is_active=True, league=league).first()
+        else:
+            # For any league, return the first current season found
+            current_season = cls.objects.filter(is_current=True).first()
+            if current_season:
+                return current_season
+            # If no current season, return the most recent active one
+            return cls.objects.filter(is_active=True).first()
 
     @property
     def is_finished(self):
