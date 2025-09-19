@@ -26,14 +26,52 @@
     font-style: italic;
 }
 
+/* Selection sections styling */
+.selection-section {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    background-color: #f8f9fa;
+}
+
+.selection-section.active {
+    display: block;
+}
+
+.selection-type-header {
+    font-weight: 600;
+    color: #0d6efd;
+    margin-bottom: 0.75rem;
+}
+
 /* Add some spacing between the dropdowns */
 .mb-3:has(.form-select[size]) {
     margin-bottom: 1.5rem !important;
 }
+
+/* Radio button styling */
+.form-check-input[type="radio"] {
+    margin-right: 0.5rem;
+}
+
+.selection-type-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: #fff;
+}
+
+.selection-type-card.active {
+    border-color: #0d6efd;
+    background-color: #f0f8ff;
+}
 </style>
 
 <div class="row justify-content-center">
-    <div class="col-md-8 col-lg-6">
+    <div class="col-md-10 col-lg-8">
         <div class="card shadow">
             <div class="card-header bg-success text-white text-center">
                 <h4 class="mb-0">
@@ -50,22 +88,43 @@
                     {% endfor %}
                 {% endif %}
 
-                <form method="post">
+                <form method="post" id="createGroupForm">
                     {% csrf_token %}
                     
-                    <div class="mb-3">
-                        <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }} *</label>
-                        {{ form.name }}
-                        {% if form.name.errors %}
-                            <div class="text-danger small mt-1">
-                                {% for error in form.name.errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
+                    <!-- Basic Group Information -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }} *</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.name.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if form.name.help_text %}
+                                    <div class="form-text">{{ form.name.help_text }}</div>
+                                {% endif %}
                             </div>
-                        {% endif %}
-                        {% if form.name.help_text %}
-                            <div class="form-text">{{ form.name.help_text }}</div>
-                        {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.max_members.id_for_label }}" class="form-label">{{ form.max_members.label }}</label>
+                                {{ form.max_members }}
+                                {% if form.max_members.errors %}
+                                    <div class="text-danger small mt-1">
+                                        {% for error in form.max_members.errors %}
+                                            <div>{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                {% if form.max_members.help_text %}
+                                    <div class="form-text">{{ form.max_members.help_text }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -84,86 +143,168 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="{{ form.countries.id_for_label }}" class="form-label">{{ form.countries.label }}</label>
-                        {{ form.countries }}
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple countries
-                            <br><i class="fas fa-star"></i> Only countries with active leagues are available
-                        </small>
-                        {% if form.countries.errors %}
+                        <div class="form-check">
+                            {{ form.is_private }}
+                            <label class="form-check-label" for="{{ form.is_private.id_for_label }}">
+                                {{ form.is_private.label }}
+                            </label>
+                        </div>
+                        {% if form.is_private.help_text %}
+                            <div class="form-text">{{ form.is_private.help_text }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Match Selection Type -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">{{ form.selection_type.label }} *</label>
+                        <div class="form-text mb-3">{{ form.selection_type.help_text }}</div>
+                        
+                        {% for radio in form.selection_type %}
+                            <div class="form-check mb-2">
+                                {{ radio.tag }}
+                                <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                    <strong>{{ radio.choice_label }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        {% if radio.choice_value == 'leagues' %}
+                                            Select entire leagues to include all matches from those leagues
+                                        {% elif radio.choice_value == 'rounds' %}
+                                            Select specific rounds/gameweeks from a particular league
+                                        {% elif radio.choice_value == 'dates' %}
+                                            Select matches on specific dates from specific leagues or all active leagues
+                                        {% elif radio.choice_value == 'mixed' %}
+                                            Combine multiple selection methods for maximum flexibility
+                                        {% endif %}
+                                    </small>
+                                </label>
+                            </div>
+                        {% endfor %}
+                        
+                        {% if form.selection_type.errors %}
                             <div class="text-danger small mt-1">
-                                {% for error in form.countries.errors %}
+                                {% for error in form.selection_type.errors %}
                                     <div>{{ error }}</div>
                                 {% endfor %}
                             </div>
                         {% endif %}
-                        {% if form.countries.help_text %}
-                            <div class="form-text">{{ form.countries.help_text }}</div>
-                        {% endif %}
                     </div>
 
-                    <div class="mb-3">
-                        <label for="{{ form.leagues.id_for_label }}" class="form-label">{{ form.leagues.label }} *</label>
-                        <div id="leagues-container">
-                            {{ form.leagues }}
+                    <!-- League Selection Section -->
+                    <div id="leagues-section" class="selection-section">
+                        <div class="selection-type-header">
+                            <i class="fas fa-globe"></i> Select Entire Leagues
                         </div>
-                        <small class="form-text text-muted">
-                            <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple leagues
-                            <br><i class="fas fa-star"></i> Only active leagues are available
-                        </small>
-                        {% if form.leagues.errors %}
-                            <div class="text-danger small mt-1">
-                                {% for error in form.leagues.errors %}
-                                    <div>{{ error }}</div>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                        {% if form.leagues.help_text %}
-                            <div class="form-text">{{ form.leagues.help_text }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.max_members.id_for_label }}" class="form-label">{{ form.max_members.label }} *</label>
-                                {{ form.max_members }}
-                                {% if form.max_members.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.max_members.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                {% if form.max_members.help_text %}
-                                    <div class="form-text">{{ form.max_members.help_text }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <div class="form-check mt-4">
-                                    {{ form.is_private }}
-                                    <label class="form-check-label" for="{{ form.is_private.id_for_label }}">
-                                        {{ form.is_private.label }}
-                                    </label>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.countries.id_for_label }}" class="form-label">{{ form.countries.label }}</label>
+                                    {{ form.countries }}
+                                    {% if form.countries.help_text %}
+                                        <div class="form-text">{{ form.countries.help_text }}</div>
+                                    {% endif %}
                                 </div>
-                                {% if form.is_private.errors %}
-                                    <div class="text-danger small mt-1">
-                                        {% for error in form.is_private.errors %}
-                                            <div>{{ error }}</div>
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                                {% if form.is_private.help_text %}
-                                    <div class="form-text">{{ form.is_private.help_text }}</div>
-                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3" id="leagues-container">
+                                    <label for="{{ form.leagues.id_for_label }}" class="form-label">{{ form.leagues.label }}</label>
+                                    {{ form.leagues }}
+                                    {% if form.leagues.help_text %}
+                                        <div class="form-text">{{ form.leagues.help_text }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'my_groups' %}" class="btn btn-secondary me-md-2">
+                    <!-- Round Selection Section -->
+                    <div id="rounds-section" class="selection-section">
+                        <div class="selection-type-header">
+                            <i class="fas fa-calendar-week"></i> Select Specific Rounds
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.round_league.id_for_label }}" class="form-label">{{ form.round_league.label }}</label>
+                                    {{ form.round_league }}
+                                    {% if form.round_league.help_text %}
+                                        <div class="form-text">{{ form.round_league.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.round_season.id_for_label }}" class="form-label">{{ form.round_season.label }}</label>
+                                    {{ form.round_season }}
+                                    {% if form.round_season.help_text %}
+                                        <div class="form-text">{{ form.round_season.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.round_numbers.id_for_label }}" class="form-label">{{ form.round_numbers.label }}</label>
+                                    {{ form.round_numbers }}
+                                    {% if form.round_numbers.help_text %}
+                                        <div class="form-text">{{ form.round_numbers.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="available-rounds" class="mt-3" style="display: none;">
+                            <label class="form-label">Available Rounds:</label>
+                            <div id="rounds-list" class="small text-muted"></div>
+                        </div>
+                    </div>
+
+                    <!-- Date Selection Section -->
+                    <div id="dates-section" class="selection-section">
+                        <div class="selection-type-header">
+                            <i class="fas fa-calendar-day"></i> Select Matches by Date
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.match_dates.id_for_label }}" class="form-label">{{ form.match_dates.label }}</label>
+                                    {{ form.match_dates }}
+                                    {% if form.match_dates.help_text %}
+                                        <div class="form-text">{{ form.match_dates.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.date_leagues.id_for_label }}" class="form-label">{{ form.date_leagues.label }}</label>
+                                    {{ form.date_leagues }}
+                                    {% if form.date_leagues.help_text %}
+                                        <div class="form-text">{{ form.date_leagues.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mixed Selection Section -->
+                    <div id="mixed-section" class="selection-section">
+                        <div class="selection-type-header">
+                            <i class="fas fa-layer-group"></i> Mixed Selection
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Mixed Selection:</strong> You can use any combination of the above methods. 
+                            All sections above are available for mixed selection.
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <button type="button" class="btn btn-info me-md-2" onclick="toggleSelectionSections(); console.log('Manual toggle called');">
+                            Test Sections
+                        </button>
+                        <a href="{% url 'group_list' %}" class="btn btn-secondary me-md-2">
                             <i class="fas fa-arrow-left"></i> Cancel
                         </a>
                         <button type="submit" class="btn btn-success">
@@ -178,21 +319,56 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const selectionTypeInputs = document.querySelectorAll('input[name="selection_type"]');
     const countriesSelect = document.getElementById('id_countries');
     const leaguesSelect = document.getElementById('id_leagues');
-    const leaguesContainer = document.getElementById('leagues-container');
+    const roundLeagueSelect = document.getElementById('id_round_league');
+    const roundSeasonSelect = document.getElementById('id_round_season');
     
-    // Store all available leagues for filtering
-    let allLeagues = [];
+    // Initialize form
+    console.log('DOM loaded, initializing form...');
+    console.log('Found selection type inputs:', selectionTypeInputs.length);
+    console.log('Found countries select:', !!countriesSelect);
+    console.log('Found leagues select:', !!leaguesSelect);
     
-    // Function to populate all leagues initially
-    function populateAllLeagues() {
-        // Get all existing options from the form
-        allLeagues = Array.from(leaguesSelect.options).map(option => ({
-            value: option.value,
-            text: option.textContent,
-            selected: option.selected
-        }));
+    // Initialize with a small delay to ensure all elements are rendered
+    setTimeout(() => {
+        console.log('Calling initial toggleSelectionSections...');
+        toggleSelectionSections();
+        updateLeagues(); // Initialize leagues based on current country selection
+    }, 100);
+    
+    // Function to toggle selection sections based on selected type
+    function toggleSelectionSections() {
+        const selectedType = document.querySelector('input[name="selection_type"]:checked')?.value;
+        const sections = ['leagues-section', 'rounds-section', 'dates-section', 'mixed-section'];
+        
+        console.log('Toggle sections called, selected type:', selectedType);
+        
+        sections.forEach(sectionId => {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.remove('active');
+            } else {
+                console.error('Section not found:', sectionId);
+            }
+        });
+        
+        if (selectedType === 'leagues' || selectedType === 'mixed') {
+            document.getElementById('leagues-section')?.classList.add('active');
+        }
+        if (selectedType === 'rounds' || selectedType === 'mixed') {
+            document.getElementById('rounds-section')?.classList.add('active');
+        }
+        if (selectedType === 'dates' || selectedType === 'mixed') {
+            document.getElementById('dates-section')?.classList.add('active');
+        }
+        if (selectedType === 'mixed') {
+            document.getElementById('mixed-section')?.classList.add('active');
+        }
+        
+        console.log('Active sections after toggle:', 
+            document.querySelectorAll('.selection-section.active').length);
     }
     
     // Function to update leagues based on selected countries
@@ -201,59 +377,118 @@ document.addEventListener('DOMContentLoaded', function() {
             .map(option => option.value);
         
         if (selectedCountries.length === 0) {
-            // Hide all leagues
-            Array.from(leaguesSelect.options).forEach(option => {
-                option.style.display = 'none';
-            });
+            // Show message to select countries first
+            leaguesSelect.innerHTML = '<option disabled>Please select countries first to see leagues</option>';
             return;
         }
         
         // Show loading state
-        const loadingOption = document.createElement('option');
-        loadingOption.disabled = true;
-        loadingOption.textContent = 'Loading leagues...';
-        loadingOption.style.display = 'block';
-        leaguesSelect.innerHTML = '';
-        leaguesSelect.appendChild(loadingOption);
+        leaguesSelect.innerHTML = '<option disabled>Loading leagues...</option>';
         
         // Make AJAX request to get leagues
         fetch('{% url "get_leagues_by_country" %}?' + selectedCountries.map(id => 'country_ids[]=' + id).join('&'))
             .then(response => response.json())
             .then(data => {
-                // Clear existing options
                 leaguesSelect.innerHTML = '';
-                
                 if (data.leagues && data.leagues.length > 0) {
-                    // Add leagues as options
                     data.leagues.forEach(league => {
-                        const option = document.createElement('option');
-                        option.value = league.id;
-                        option.textContent = `${league.display_name} (Level ${league.level || 1})`;
+                        const option = new Option(league.display_name, league.id);
                         leaguesSelect.appendChild(option);
                     });
                 } else {
-                    // No leagues found
-                    const noLeaguesOption = document.createElement('option');
-                    noLeaguesOption.disabled = true;
-                    noLeaguesOption.textContent = 'No leagues found for the selected countries.';
-                    leaguesSelect.appendChild(noLeaguesOption);
+                    leaguesSelect.innerHTML = '<option disabled>No leagues found for selected countries</option>';
                 }
             })
             .catch(error => {
                 console.error('Error fetching leagues:', error);
-                leaguesSelect.innerHTML = '';
-                const errorOption = document.createElement('option');
-                errorOption.disabled = true;
-                errorOption.textContent = 'Error loading leagues. Please try again.';
-                leaguesSelect.appendChild(errorOption);
+                leaguesSelect.innerHTML = '<option disabled>Error loading leagues</option>';
             });
     }
     
-    // Add event listener to country select
-    countriesSelect.addEventListener('change', updateLeagues);
+    // Function to update seasons when league is selected
+    function updateSeasons() {
+        const leagueId = roundLeagueSelect.value;
+        
+        if (!leagueId) {
+            roundSeasonSelect.innerHTML = '<option value="">Select a season</option>';
+            return;
+        }
+        
+        roundSeasonSelect.innerHTML = '<option disabled>Loading seasons...</option>';
+        
+        fetch('{% url "get_seasons_by_league" %}?league_id=' + leagueId)
+            .then(response => response.json())
+            .then(data => {
+                roundSeasonSelect.innerHTML = '<option value="">Select a season</option>';
+                if (data.seasons && data.seasons.length > 0) {
+                    data.seasons.forEach(season => {
+                        const option = new Option(season.name, season.id);
+                        if (season.is_current) {
+                            option.selected = true;
+                        }
+                        roundSeasonSelect.appendChild(option);
+                    });
+                    updateRounds(); // Auto-update rounds for the current season
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching seasons:', error);
+                roundSeasonSelect.innerHTML = '<option disabled>Error loading seasons</option>';
+            });
+    }
     
-    // Initial call to set up the leagues display
-    updateLeagues();
+    // Function to update available rounds
+    function updateRounds() {
+        const leagueId = roundLeagueSelect.value;
+        const seasonId = roundSeasonSelect.value;
+        const roundsList = document.getElementById('rounds-list');
+        const availableRounds = document.getElementById('available-rounds');
+        
+        if (!leagueId || !seasonId) {
+            availableRounds.style.display = 'none';
+            return;
+        }
+        
+        roundsList.innerHTML = 'Loading rounds...';
+        availableRounds.style.display = 'block';
+        
+        fetch('{% url "get_rounds_by_league_season" %}?league_id=' + leagueId + '&season_id=' + seasonId)
+            .then(response => response.json())
+            .then(data => {
+                if (data.rounds && data.rounds.length > 0) {
+                    roundsList.innerHTML = 'Available: ' + data.rounds.join(', ');
+                } else {
+                    roundsList.innerHTML = 'No rounds found for this league and season.';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching rounds:', error);
+                roundsList.innerHTML = 'Error loading rounds.';
+            });
+    }
+    
+    // Event listeners - add both change and click listeners for radio buttons
+    selectionTypeInputs.forEach(input => {
+        input.addEventListener('change', toggleSelectionSections);
+        input.addEventListener('click', toggleSelectionSections);
+    });
+    
+    if (countriesSelect) {
+        countriesSelect.addEventListener('change', updateLeagues);
+    }
+    
+    if (roundLeagueSelect) {
+        roundLeagueSelect.addEventListener('change', updateSeasons);
+    }
+    
+    if (roundSeasonSelect) {
+        roundSeasonSelect.addEventListener('change', updateRounds);
+    }
+    
+    // Make functions available globally for inline event handlers
+    window.toggleSelectionSections = toggleSelectionSections;
+    window.updateSeasons = updateSeasons;
+    window.updateRounds = updateRounds;
 });
 </script>
 {% endblock %}

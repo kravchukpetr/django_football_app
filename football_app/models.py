@@ -306,8 +306,8 @@ class UserGroup(models.Model):
     description = models.TextField(max_length=500, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_groups')
     members = models.ManyToManyField(User, through='GroupMembership', related_name='joined_groups')
-    leagues = models.ManyToManyField(League, related_name='prediction_groups', 
-                                   help_text="Leagues that this group predicts")
+    leagues = models.ManyToManyField(League, related_name='prediction_groups', blank=True,
+                                   help_text="Leagues that this group predicts (for backward compatibility)")
     is_private = models.BooleanField(default=False, help_text="Private groups require invitation")
     max_members = models.PositiveIntegerField(default=50, help_text="Maximum number of members")
     join_code = models.CharField(max_length=20, unique=True, blank=True, 
@@ -345,6 +345,97 @@ class UserGroup(models.Model):
         """Get group leaderboard sorted by total points"""
         memberships = self.groupmembership_set.select_related('user').order_by('-total_points')
         return memberships
+
+    def get_all_matches(self):
+        """Get all matches that belong to this group based on all selection criteria"""
+        from django.db.models import Q
+        
+        # Start with empty queryset
+        all_matches = Fixture.objects.none()
+        
+        # Add matches from entire leagues (backward compatibility)
+        if self.leagues.exists():
+            league_matches = Fixture.objects.filter(league__in=self.leagues.all())
+            all_matches = all_matches.union(league_matches)
+        
+        # Add matches from league rounds
+        for league_round in self.group_league_rounds.all():
+            round_matches = Fixture.objects.filter(
+                league=league_round.league,
+                season=league_round.season,
+                round_number=league_round.round_number
+            )
+            all_matches = all_matches.union(round_matches)
+        
+        # Add matches from specific dates
+        for date_selection in self.group_date_selections.all():
+            if date_selection.specific_leagues.exists():
+                # Matches from specific leagues on specific date
+                date_matches = Fixture.objects.filter(
+                    league__in=date_selection.specific_leagues.all(),
+                    date__date=date_selection.match_date
+                )
+            else:
+                # All matches from active leagues on specific date
+                current_season = Season.get_current_season()
+                if current_season:
+                    date_matches = Fixture.objects.filter(
+                        season=current_season,
+                        league__is_active=True,
+                        date__date=date_selection.match_date
+                    )
+                else:
+                    date_matches = Fixture.objects.none()
+            all_matches = all_matches.union(date_matches)
+        
+        return all_matches.distinct()
+
+
+class GroupLeagueRound(models.Model):
+    """Model for selecting specific rounds of leagues for a group"""
+    group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, related_name='group_league_rounds')
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    season = models.ForeignKey(Season, on_delete=models.CASCADE)
+    round_number = models.CharField(max_length=50, help_text="Round/gameweek number or identifier")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['group', 'league', 'season', 'round_number']
+        ordering = ['league__name', 'round_number']
+
+    def __str__(self):
+        return f"{self.group.name} - {self.league.name} Round {self.round_number} ({self.season.name})"
+
+
+class GroupDateSelection(models.Model):
+    """Model for selecting matches on specific dates"""
+    group = models.ForeignKey(UserGroup, on_delete=models.CASCADE, related_name='group_date_selections')
+    match_date = models.DateField(help_text="Date to include matches from")
+    specific_leagues = models.ManyToManyField(
+        League, 
+        blank=True,
+        help_text="Specific leagues for this date. If empty, includes all active leagues"
+    )
+    description = models.CharField(
+        max_length=200, 
+        blank=True,
+        help_text="Optional description for this date selection (e.g., 'Champions League Final')"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['group', 'match_date']
+        ordering = ['match_date']
+
+    def __str__(self):
+        if self.specific_leagues.exists():
+            leagues_str = ", ".join([league.name for league in self.specific_leagues.all()[:3]])
+            if self.specific_leagues.count() > 3:
+                leagues_str += f" and {self.specific_leagues.count() - 3} more"
+        else:
+            leagues_str = "All active leagues"
+        
+        return f"{self.group.name} - {self.match_date} ({leagues_str})"
 
 
 class GroupMembership(models.Model):
@@ -388,11 +479,11 @@ class GroupMembership(models.Model):
 
     def update_stats(self):
         """Update member statistics for this group"""
-        # Get all predictions for matches in this group's leagues
-        group_leagues = self.group.leagues.all()
+        # Get all predictions for matches in this group using the new flexible system
+        group_matches = self.group.get_all_matches()
         predictions = MatchPredict.objects.filter(
             user=self.user,
-            match__league__in=group_leagues,
+            match__in=group_matches,
             match__status_long='Match Finished'
         )
         

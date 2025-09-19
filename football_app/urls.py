@@ -44,4 +44,6 @@ urlpatterns = [
     
     # AJAX URLs
     path('ajax/get-leagues/', views.get_leagues_by_country, name='get_leagues_by_country'),
+    path('ajax/get-seasons/', views.get_seasons_by_league, name='get_seasons_by_league'),
+    path('ajax/get-rounds/', views.get_rounds_by_league_season, name='get_rounds_by_league_season'),
 ]

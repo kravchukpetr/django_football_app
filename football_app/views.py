@@ -640,12 +640,17 @@ def group_detail(request, group_id):
         group=group, is_active=True
     ).select_related('user').order_by('-total_points', '-correct_predictions')
     
-    # Get group leagues
+    # Get group leagues and flexible selections
     leagues = group.leagues.all().order_by('country__name', 'name')
+    league_rounds = group.group_league_rounds.select_related('league', 'season').order_by('league__name', 'round_number')
+    date_selections = group.group_date_selections.prefetch_related('specific_leagues').order_by('match_date')
     
-    # Recent group activity (predictions in group leagues)
+    # Get all matches for this group using the new flexible system
+    group_matches = group.get_all_matches()
+    
+    # Recent group activity (predictions in group matches)
     recent_predictions = MatchPredict.objects.filter(
-        match__league__in=leagues,
+        match__in=group_matches,
         user__in=group.members.all()
     ).select_related(
         'user', 'match__home_team', 'match__away_team', 'match__league'
@@ -657,7 +662,10 @@ def group_detail(request, group_id):
         'user_membership': user_membership,
         'leaderboard': leaderboard,
         'leagues': leagues,
+        'league_rounds': league_rounds,
+        'date_selections': date_selections,
         'recent_predictions': recent_predictions,
+        'total_matches': group_matches.count() if group_matches else 0,
     }
     return render(request, 'football_app/group_detail.html', context)
 
@@ -703,11 +711,16 @@ def prediction_center(request):
     # Get user's groups to filter relevant matches
     user_groups = UserGroup.objects.filter(members=request.user)
     
-    # Get leagues from user's groups
+    # Get matches from user's groups using the new flexible system
     if user_groups.exists():
-        leagues = League.objects.filter(prediction_groups__in=user_groups).distinct()
-        matches = Fixture.objects.filter(
-            league__in=leagues,
+        # Collect all matches from all user groups
+        all_group_matches = Fixture.objects.none()
+        for group in user_groups:
+            group_matches = group.get_all_matches()
+            all_group_matches = all_group_matches.union(group_matches)
+        
+        # Filter for upcoming matches and add season filter
+        matches = all_group_matches.filter(
             season=selected_season,
             status_long='Not Started',
             date__gte=timezone.now()
@@ -1012,14 +1025,16 @@ def signout_view(request):
 
 @login_required
 def create_group_view(request):
-    """Create a new user group"""
+    """Create a new user group with flexible match selection"""
     if request.method == 'POST':
         form = CreateGroupForm(request.POST)
         if form.is_valid():
             group = form.save(commit=False)
             group.creator = request.user
             group.save()
-            form.save_m2m()  # Save many-to-many relationships (leagues)
+            
+            # The form's save method will handle the flexible match selections
+            form.save()
             
             # Add creator as admin member
             GroupMembership.objects.create(
@@ -1030,6 +1045,11 @@ def create_group_view(request):
             
             messages.success(request, f"Group '{group.name}' created successfully!")
             return redirect('group_detail', group_id=group.id)
+        else:
+            # Add error messages to help debug form issues
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
         form = CreateGroupForm()
     
@@ -1212,3 +1232,65 @@ def get_leagues_by_country(request):
     
     except (ValueError, TypeError):
         return JsonResponse({'error': 'Invalid country IDs'}, status=400)
+
+
+@require_http_methods(["GET"])
+def get_seasons_by_league(request):
+    """AJAX view to get seasons for a selected league"""
+    league_id = request.GET.get('league_id')
+    
+    if not league_id:
+        return JsonResponse({'seasons': []})
+    
+    try:
+        league_id = int(league_id)
+        
+        # Get seasons for the selected league (only active seasons)
+        seasons = Season.objects.filter(
+            league_id=league_id,
+            is_active=True
+        ).order_by('-start_year')
+        
+        # Format the response
+        seasons_data = []
+        for season in seasons:
+            seasons_data.append({
+                'id': season.id,
+                'name': season.name,
+                'start_year': season.start_year,
+                'end_year': season.end_year,
+                'is_current': season.is_current
+            })
+        
+        return JsonResponse({'seasons': seasons_data})
+    
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Invalid league ID'}, status=400)
+
+
+@require_http_methods(["GET"])
+def get_rounds_by_league_season(request):
+    """AJAX view to get available rounds for a league and season"""
+    league_id = request.GET.get('league_id')
+    season_id = request.GET.get('season_id')
+    
+    if not league_id or not season_id:
+        return JsonResponse({'rounds': []})
+    
+    try:
+        league_id = int(league_id)
+        season_id = int(season_id)
+        
+        # Get distinct round numbers for the league and season
+        rounds = Fixture.objects.filter(
+            league_id=league_id,
+            season_id=season_id
+        ).values_list('round_number', flat=True).distinct().order_by('round_number')
+        
+        # Filter out None values and convert to list
+        rounds_data = [round_num for round_num in rounds if round_num is not None]
+        
+        return JsonResponse({'rounds': rounds_data})
+    
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Invalid league or season ID'}, status=400)

@@ -6,7 +6,8 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import (
     Country, League, Team, Fixture, MatchPredict, 
-    UserGroup, GroupMembership, GroupInvitation, UserProfile, Season
+    UserGroup, GroupMembership, GroupInvitation, UserProfile, Season,
+    GroupLeagueRound, GroupDateSelection
 )
 
 
@@ -389,6 +390,49 @@ class UserAdmin(BaseUserAdmin):
 # Re-register UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
+
+
+@admin.register(GroupLeagueRound)
+class GroupLeagueRoundAdmin(admin.ModelAdmin):
+    list_display = ('group', 'league', 'season', 'round_number', 'created_at')
+    list_filter = ('league', 'season', 'created_at')
+    search_fields = ('group__name', 'league__name', 'round_number')
+    
+    fieldsets = (
+        ('Round Selection', {
+            'fields': ('group', 'league', 'season', 'round_number')
+        }),
+    )
+
+
+@admin.register(GroupDateSelection) 
+class GroupDateSelectionAdmin(admin.ModelAdmin):
+    list_display = ('group', 'match_date', 'leagues_display', 'description', 'created_at')
+    list_filter = ('match_date', 'created_at')
+    search_fields = ('group__name', 'description')
+    filter_horizontal = ('specific_leagues',)
+    
+    fieldsets = (
+        ('Date Selection', {
+            'fields': ('group', 'match_date', 'description')
+        }),
+        ('League Filters', {
+            'fields': ('specific_leagues',),
+            'description': 'Leave empty to include all active leagues on the selected date'
+        }),
+    )
+    
+    def leagues_display(self, obj):
+        if obj.specific_leagues.exists():
+            count = obj.specific_leagues.count()
+            if count <= 3:
+                return ', '.join([league.name for league in obj.specific_leagues.all()])
+            else:
+                names = ', '.join([league.name for league in obj.specific_leagues.all()[:3]])
+                return f"{names} and {count - 3} more"
+        return "All active leagues"
+    leagues_display.short_description = 'Leagues'
+
 
 # Customize admin site header
 admin.site.site_header = "Football Stats Administration"

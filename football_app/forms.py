@@ -406,7 +406,26 @@ class UserSignInForm(forms.Form):
 
 
 class CreateGroupForm(forms.ModelForm):
-    """Form for creating a new user group"""
+    """Form for creating a new user group with flexible match selection"""
+    
+    # Match selection type
+    SELECTION_TYPE_CHOICES = [
+        ('leagues', 'Entire Leagues'),
+        ('rounds', 'Specific League Rounds'),
+        ('dates', 'Matches on Specific Dates'),
+        ('mixed', 'Mixed Selection'),
+    ]
+    
+    selection_type = forms.ChoiceField(
+        choices=SELECTION_TYPE_CHOICES,
+        initial='leagues',
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-check-input',
+            'onchange': 'toggleSelectionSections()'
+        }),
+        label='Match Selection Type',
+        help_text='Choose how you want to select matches for this group'
+    )
     
     # Add separate country field for cascading dropdown
     countries = forms.ModelMultipleChoiceField(
@@ -423,7 +442,7 @@ class CreateGroupForm(forms.ModelForm):
     
     class Meta:
         model = UserGroup
-        fields = ['name', 'description', 'leagues', 'is_private', 'max_members']
+        fields = ['name', 'description', 'is_private', 'max_members']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -461,22 +480,82 @@ class CreateGroupForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Set countries queryset - only show countries that have active leagues
-        from .models import Country
+        from .models import Country, League, Season
         self.fields['countries'].queryset = Country.objects.filter(
             leagues__is_active=True
         ).distinct().order_by('name')
         
-        # Override the leagues field to use proper queryset and widget
+        # Add leagues field (for backward compatibility and mixed selection)
         self.fields['leagues'] = forms.ModelMultipleChoiceField(
-            queryset=League.objects.filter(is_active=True),  # Only active leagues
-            required=True,
+            queryset=League.objects.none(),  # Start with empty queryset
+            required=False,
             widget=forms.SelectMultiple(attrs={
                 'class': 'form-select',
                 'id': 'id_leagues',
                 'size': '8'
             }),
             label='Leagues to Predict',
-            help_text='Select active leagues from the chosen countries'
+            help_text='Select countries first, then choose leagues from selected countries'
+        )
+        
+        # Add round selection fields
+        self.fields['round_league'] = forms.ModelChoiceField(
+            queryset=League.objects.filter(is_active=True),
+            required=False,
+            widget=forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_round_league',
+                'onchange': 'updateSeasons()'
+            }),
+            label='League for Round Selection',
+            help_text='Select a league to choose specific rounds from'
+        )
+        
+        self.fields['round_season'] = forms.ModelChoiceField(
+            queryset=Season.objects.filter(is_active=True),
+            required=False,
+            widget=forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_round_season',
+                'onchange': 'updateRounds()'
+            }),
+            label='Season',
+            help_text='Select the season for round selection'
+        )
+        
+        self.fields['round_numbers'] = forms.CharField(
+            required=False,
+            widget=forms.TextInput(attrs={
+                'class': 'form-control',
+                'id': 'id_round_numbers',
+                'placeholder': 'e.g., 1, 2, 5-10, Matchday 1, Quarter-final'
+            }),
+            label='Round Numbers',
+            help_text='Enter round numbers (comma-separated, ranges allowed)'
+        )
+        
+        # Add date selection fields
+        self.fields['match_dates'] = forms.CharField(
+            required=False,
+            widget=forms.TextInput(attrs={
+                'class': 'form-control',
+                'id': 'id_match_dates',
+                'placeholder': 'YYYY-MM-DD, YYYY-MM-DD, ...'
+            }),
+            label='Match Dates',
+            help_text='Enter dates in YYYY-MM-DD format (comma-separated)'
+        )
+        
+        self.fields['date_leagues'] = forms.ModelMultipleChoiceField(
+            queryset=League.objects.filter(is_active=True),
+            required=False,
+            widget=forms.SelectMultiple(attrs={
+                'class': 'form-select',
+                'id': 'id_date_leagues',
+                'size': '6'
+            }),
+            label='Leagues for Date Selection',
+            help_text='Leave empty to include all active leagues on selected dates'
         )
     
     def clean_name(self):
@@ -493,22 +572,106 @@ class CreateGroupForm(forms.ModelForm):
     
     def clean(self):
         cleaned_data = super().clean()
-        countries = cleaned_data.get('countries')
+        selection_type = cleaned_data.get('selection_type')
         leagues = cleaned_data.get('leagues')
+        round_league = cleaned_data.get('round_league')
+        round_season = cleaned_data.get('round_season')
+        round_numbers = cleaned_data.get('round_numbers')
+        match_dates = cleaned_data.get('match_dates')
         
-        # Validate that at least one league is selected
-        if not leagues:
-            raise ValidationError("Please select at least one league.")
-        
-        # Validate that selected leagues belong to selected countries
-        if countries and leagues:
-            selected_country_ids = set(countries.values_list('id', flat=True))
-            league_country_ids = set(leagues.values_list('country_id', flat=True))
-            
-            if not league_country_ids.issubset(selected_country_ids):
-                raise ValidationError("Selected leagues must belong to the selected countries.")
+        # Validate based on selection type
+        if selection_type == 'leagues':
+            if not leagues:
+                raise ValidationError("Please select at least one league for league-based selection.")
+        elif selection_type == 'rounds':
+            if not round_league:
+                raise ValidationError("Please select a league for round-based selection.")
+            if not round_season:
+                raise ValidationError("Please select a season for round-based selection.")
+            if not round_numbers:
+                raise ValidationError("Please enter round numbers for round-based selection.")
+        elif selection_type == 'dates':
+            if not match_dates:
+                raise ValidationError("Please enter match dates for date-based selection.")
+            # Validate date format
+            try:
+                from datetime import datetime
+                dates = [date.strip() for date in match_dates.split(',')]
+                for date_str in dates:
+                    datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                raise ValidationError("Please enter dates in YYYY-MM-DD format.")
+        elif selection_type == 'mixed':
+            has_selection = leagues or (round_league and round_season and round_numbers) or match_dates
+            if not has_selection:
+                raise ValidationError("Please make at least one selection for mixed selection type.")
         
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        
+        if commit:
+            self._save_match_selections(instance)
+        
+        return instance
+    
+    def _save_match_selections(self, group):
+        """Save the flexible match selections based on form data"""
+        from .models import GroupLeagueRound, GroupDateSelection
+        from datetime import datetime
+        
+        selection_type = self.cleaned_data.get('selection_type')
+        
+        # Save league selections (for leagues and mixed types)
+        if selection_type in ['leagues', 'mixed']:
+            leagues = self.cleaned_data.get('leagues')
+            if leagues:
+                group.leagues.set(leagues)
+        
+        # Save round selections (for rounds and mixed types)
+        if selection_type in ['rounds', 'mixed']:
+            round_league = self.cleaned_data.get('round_league')
+            round_season = self.cleaned_data.get('round_season')
+            round_numbers = self.cleaned_data.get('round_numbers')
+            
+            if round_league and round_season and round_numbers:
+                # Parse round numbers (handle ranges and individual numbers)
+                rounds = []
+                for round_part in round_numbers.split(','):
+                    round_part = round_part.strip()
+                    if '-' in round_part and round_part.replace('-', '').isdigit():
+                        # Handle ranges like "1-5"
+                        start, end = map(int, round_part.split('-'))
+                        rounds.extend([str(i) for i in range(start, end + 1)])
+                    else:
+                        # Handle individual rounds
+                        rounds.append(round_part)
+                
+                # Create GroupLeagueRound objects
+                for round_num in rounds:
+                    GroupLeagueRound.objects.get_or_create(
+                        group=group,
+                        league=round_league,
+                        season=round_season,
+                        round_number=round_num.strip()
+                    )
+        
+        # Save date selections (for dates and mixed types)
+        if selection_type in ['dates', 'mixed']:
+            match_dates = self.cleaned_data.get('match_dates')
+            date_leagues = self.cleaned_data.get('date_leagues')
+            
+            if match_dates:
+                dates = [date.strip() for date in match_dates.split(',')]
+                for date_str in dates:
+                    date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    date_selection, created = GroupDateSelection.objects.get_or_create(
+                        group=group,
+                        match_date=date_obj
+                    )
+                    if date_leagues:
+                        date_selection.specific_leagues.set(date_leagues)
 
 
 class GroupInvitationForm(forms.ModelForm):
