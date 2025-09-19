@@ -53,90 +53,170 @@
     </div>
 </div>
 
-<!-- League Standings -->
+<!-- League Standings and Other Competitions -->
 <div class="row">
     <div class="col-12">
         <div class="card mb-4">
             <div class="card-header">
                 <h5>
-                    <i class="fas fa-list-ol"></i> League Standings - {{ selected_season.name }}
+                    <i class="fas fa-list-ol"></i> League Information - {{ selected_season.name }}
                     {% if selected_season.is_current %}
                         <span class="badge bg-success ms-2">Current Season</span>
                     {% endif %}
                 </h5>
             </div>
             <div class="card-body">
-                {% if standings %}
-                <div class="table-responsive">
-                    <table class="table table-striped standings-table">
-                        <thead>
-                            <tr>
-                                <th>Pos</th>
-                                <th>Team</th>
-                                <th>P</th>
-                                <th>W</th>
-                                <th>D</th>
-                                <th>L</th>
-                                <th>GF</th>
-                                <th>GA</th>
-                                <th>GD</th>
-                                <th>Pts</th>
-                                <th>Form</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for standing in standings %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
-                                <td>
-                                    <a href="{% url 'team_detail' standing.team.id %}{% if selected_season %}?season={{ selected_season.id }}{% endif %}" class="text-decoration-none">
-                                        {% if standing.team.logo_image %}
-                                            <img src="{{ standing.team.logo_image }}" alt="{{ standing.team.name }}" style="width: 20px; height: auto;" class="me-2">
-                                        {% endif %}
-                                        {{ standing.team.name }}
-                                    </a>
-                                </td>
-                                <td>{{ standing.played }}</td>
-                                <td>{{ standing.wins }}</td>
-                                <td>{{ standing.draws }}</td>
-                                <td>{{ standing.losses }}</td>
-                                <td>{{ standing.goals_for }}</td>
-                                <td>{{ standing.goals_against }}</td>
-                                <td class="{% if standing.goal_difference > 0 %}text-success{% elif standing.goal_difference < 0 %}text-danger{% endif %}">
-                                    {{ standing.goal_difference|stringformat:"+d" }}
-                                </td>
-                                <td><strong>{{ standing.points }}</strong></td>
-                                <td>
-                                    {% if standing.form %}
-                                        <div class="d-flex gap-1">
-                                            {% for result in standing.form %}
-                                                <span class="badge form-badge {% if result == 'W' %}bg-success{% elif result == 'D' %}bg-warning{% else %}bg-danger{% endif %}" 
-                                                      title="{% if result == 'W' %}Win{% elif result == 'D' %}Draw{% else %}Loss{% endif %}">
-                                                    {{ result }}
-                                                </span>
-                                            {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="fas fa-info-circle"></i> 
-                            <strong>Form:</strong> Last 5 matches 
-                            (<span class="badge bg-success form-badge">W</span> Win, 
-                            <span class="badge bg-warning form-badge">D</span> Draw, 
-                            <span class="badge bg-danger form-badge">L</span> Loss)
-                        </small>
+                <!-- Navigation tabs -->
+                <ul class="nav nav-tabs" id="leagueInfoTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="standings-tab" data-bs-toggle="tab" data-bs-target="#standings" type="button" role="tab" aria-controls="standings" aria-selected="true">
+                            <i class="fas fa-trophy"></i> League Standings
+                        </button>
+                    </li>
+                    {% if other_competitions %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="other-competitions-tab" data-bs-toggle="tab" data-bs-target="#other-competitions" type="button" role="tab" aria-controls="other-competitions" aria-selected="false">
+                            <i class="fas fa-star"></i> Other Competitions
+                        </button>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <!-- Tab content -->
+                <div class="tab-content" id="leagueInfoTabContent">
+                    <!-- Regular Season Standings Tab -->
+                    <div class="tab-pane fade show active" id="standings" role="tabpanel" aria-labelledby="standings-tab">
+                        <div class="mt-3">
+                            {% if standings %}
+                            <div class="mb-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Based on Regular Season matches only
+                                </small>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped standings-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Pos</th>
+                                            <th>Team</th>
+                                            <th>P</th>
+                                            <th>W</th>
+                                            <th>D</th>
+                                            <th>L</th>
+                                            <th>GF</th>
+                                            <th>GA</th>
+                                            <th>GD</th>
+                                            <th>Pts</th>
+                                            <th>Form</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for standing in standings %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>
+                                                <a href="{% url 'team_detail' standing.team.id %}{% if selected_season %}?season={{ selected_season.id }}{% endif %}" class="text-decoration-none">
+                                                    {% if standing.team.logo_image %}
+                                                        <img src="{{ standing.team.logo_image }}" alt="{{ standing.team.name }}" style="width: 20px; height: auto;" class="me-2">
+                                                    {% endif %}
+                                                    {{ standing.team.name }}
+                                                </a>
+                                            </td>
+                                            <td>{{ standing.played }}</td>
+                                            <td>{{ standing.wins }}</td>
+                                            <td>{{ standing.draws }}</td>
+                                            <td>{{ standing.losses }}</td>
+                                            <td>{{ standing.goals_for }}</td>
+                                            <td>{{ standing.goals_against }}</td>
+                                            <td class="{% if standing.goal_difference > 0 %}text-success{% elif standing.goal_difference < 0 %}text-danger{% endif %}">
+                                                {{ standing.goal_difference|stringformat:"+d" }}
+                                            </td>
+                                            <td><strong>{{ standing.points }}</strong></td>
+                                            <td>
+                                                {% if standing.form %}
+                                                    <div class="d-flex gap-1">
+                                                        {% for result in standing.form %}
+                                                            <span class="badge form-badge {% if result == 'W' %}bg-success{% elif result == 'D' %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                                  title="{% if result == 'W' %}Win{% elif result == 'D' %}Draw{% else %}Loss{% endif %}">
+                                                                {{ result }}
+                                                            </span>
+                                                        {% endfor %}
+                                                    </div>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle"></i> 
+                                        <strong>Form:</strong> Last 5 matches 
+                                        (<span class="badge bg-success form-badge">W</span> Win, 
+                                        <span class="badge bg-warning form-badge">D</span> Draw, 
+                                        <span class="badge bg-danger form-badge">L</span> Loss)
+                                    </small>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="text-muted mt-3">No Regular Season standings data available.</p>
+                            {% endif %}
+                        </div>
                     </div>
+
+                    <!-- Other Competitions Tab -->
+                    {% if other_competitions %}
+                    <div class="tab-pane fade" id="other-competitions" role="tabpanel" aria-labelledby="other-competitions-tab">
+                        <div class="mt-3">
+                            {% for round_type, rounds in other_competitions.items %}
+                            <div class="mb-4">
+                                <h6 class="border-bottom pb-2">
+                                    <i class="fas fa-trophy"></i> {{ round_type }}
+                                </h6>
+                                {% for round_number, matches in rounds.items %}
+                                <div class="mb-3">
+                                    <h6 class="text-muted mb-2">{{ round_number }}</h6>
+                                    <div class="row">
+                                        {% for match in matches %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="border rounded p-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div class="flex-grow-1">
+                                                        <div class="d-flex align-items-center">
+                                                            {% if match.home_team.logo_image %}
+                                                                <img src="{{ match.home_team.logo_image }}" alt="{{ match.home_team.name }}" style="width: 16px; height: auto;" class="me-2">
+                                                            {% endif %}
+                                                            <strong>{{ match.home_team.name }}</strong>
+                                                        </div>
+                                                        <div class="d-flex align-items-center mt-1">
+                                                            {% if match.away_team.logo_image %}
+                                                                <img src="{{ match.away_team.logo_image }}" alt="{{ match.away_team.name }}" style="width: 16px; height: auto;" class="me-2">
+                                                            {% endif %}
+                                                            <strong>{{ match.away_team.name }}</strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-end">
+                                                        <div class="match-result fs-5">
+                                                            {{ match.home_goals }}-{{ match.away_goals }}
+                                                        </div>
+                                                        <small class="text-muted">{{ match.date|date:"M d" }}</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
-                {% else %}
-                <p class="text-muted">No standings data available.</p>
-                {% endif %}
             </div>
         </div>
     </div>

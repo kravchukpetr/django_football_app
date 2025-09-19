@@ -169,20 +169,36 @@ def league_detail(request, league_id):
         date__gte=timezone.now()
     ).select_related('home_team', 'away_team', 'season').order_by('date')[:10]
     
-    # Calculate standings - get teams that have played in this league
+    # Calculate standings - get teams that have played in Regular Season matches only
     team_ids = set()
-    team_ids.update(Fixture.objects.filter(league=league, season=selected_season).values_list('home_team_id', flat=True))
-    team_ids.update(Fixture.objects.filter(league=league, season=selected_season).values_list('away_team_id', flat=True))
+    team_ids.update(Fixture.objects.filter(
+        league=league, 
+        season=selected_season, 
+        round_type='Regular Season'
+    ).values_list('home_team_id', flat=True))
+    team_ids.update(Fixture.objects.filter(
+        league=league, 
+        season=selected_season, 
+        round_type='Regular Season'
+    ).values_list('away_team_id', flat=True))
     teams = Team.objects.filter(id__in=team_ids)
     standings = []
     
     for team in teams:
-        # Get finished matches for this team in the selected season
+        # Get finished Regular Season matches for this team in the selected season
         home_matches = Fixture.objects.filter(
-            home_team=team, league=league, season=selected_season, status_long='Match Finished'
+            home_team=team, 
+            league=league, 
+            season=selected_season, 
+            status_long='Match Finished',
+            round_type='Regular Season'
         )
         away_matches = Fixture.objects.filter(
-            away_team=team, league=league, season=selected_season, status_long='Match Finished'
+            away_team=team, 
+            league=league, 
+            season=selected_season, 
+            status_long='Match Finished',
+            round_type='Regular Season'
         )
         
         played = home_matches.count() + away_matches.count()
@@ -251,11 +267,39 @@ def league_detail(request, league_id):
     # Sort by points, then goal difference, then goals for
     standings.sort(key=lambda x: (-x['points'], -x['goal_difference'], -x['goals_for']))
     
+    # Get non-regular season fixtures grouped by round_type and round_number
+    other_competitions = Fixture.objects.filter(
+        league=league,
+        season=selected_season,
+        status_long='Match Finished'
+    ).exclude(round_type='Regular Season').select_related('home_team', 'away_team').order_by('round_type', 'round_number', 'date')
+    
+    # Group other competitions by round_type
+    competitions_by_type = {}
+    for match in other_competitions:
+        round_type = match.round_type or 'Other'
+        if round_type not in competitions_by_type:
+            competitions_by_type[round_type] = {}
+        
+        round_number = match.round_number or 'Unknown Round'
+        if round_number not in competitions_by_type[round_type]:
+            competitions_by_type[round_type][round_number] = []
+        
+        competitions_by_type[round_type][round_number].append(match)
+    
+    # Sort competitions by round_type and then by round_number
+    sorted_competitions = {}
+    for round_type in sorted(competitions_by_type.keys()):
+        sorted_competitions[round_type] = {}
+        for round_number in sorted(competitions_by_type[round_type].keys(), key=lambda x: str(x)):
+            sorted_competitions[round_type][round_number] = competitions_by_type[round_type][round_number]
+    
     context = {
         'league': league,
         'recent_matches': recent_matches,
         'upcoming_matches': upcoming_matches,
         'standings': standings,
+        'other_competitions': sorted_competitions,
         'selected_season': selected_season,
         'available_seasons': available_seasons,
     }
