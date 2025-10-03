@@ -1,4 +1,5 @@
 {% extends 'football_app/base.html' %}
+{% load custom_filters %}
 
 {% block title %}{{ league.name }} - Football Stats{% endblock %}
 
@@ -256,13 +257,13 @@
                                 <div class="card">
                                     <div class="card-header">
                                         <h6 class="mb-0">
-                                            <button class="btn btn-link text-decoration-none p-0 w-100 text-start" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ forloop.counter0 }}" aria-expanded="false" aria-controls="collapse-{{ forloop.counter0 }}">
+                                            <button class="btn btn-link text-decoration-none p-0 w-100 text-start" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ forloop.counter0 }}" aria-expanded="{% if round_type|should_expand_round %}true{% else %}false{% endif %}" aria-controls="collapse-{{ forloop.counter0 }}">
                                                 <i class="fas fa-trophy"></i> {{ round_type }}
-                                                <i class="fas fa-chevron-down float-end"></i>
+                                                <i class="fas fa-chevron-down float-end {% if round_type|should_expand_round %}rotated{% endif %}"></i>
                                             </button>
                                         </h6>
                                     </div>
-                                    <div class="collapse" id="collapse-{{ forloop.counter0 }}">
+                                    <div class="collapse {% if round_type|should_expand_round %}show{% endif %}" id="collapse-{{ forloop.counter0 }}">
                                         <div class="card-body">
                                             {% for round_number, matches in rounds.items %}
                                             <div class="mb-3">
@@ -410,10 +411,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const collapseElements = document.querySelectorAll('[data-bs-toggle="collapse"]');
     
     collapseElements.forEach(function(element) {
+        const chevron = element.querySelector('.fa-chevron-down');
+        const target = document.querySelector(element.getAttribute('data-bs-target'));
+        
+        // Set initial rotation for already expanded sections
+        if (target && target.classList.contains('show')) {
+            chevron.style.transform = 'rotate(180deg)';
+        }
+        
         element.addEventListener('click', function() {
-            const chevron = this.querySelector('.fa-chevron-down');
-            const target = document.querySelector(this.getAttribute('data-bs-target'));
-            
             if (target) {
                 target.addEventListener('shown.bs.collapse', function() {
                     chevron.style.transform = 'rotate(180deg)';

@@ -304,11 +304,101 @@ def league_detail(request, league_id):
         
         competitions_by_type[round_type][round_number].append(match)
     
-    # Sort competitions by round_type and then by round_number
+    # Get round order dictionary for sorting rounds
+    def get_round_order_key():
+        """Get round order dictionary where round name is key, order is value"""
+        round_order = {
+            'Preliminary round': 0,
+            'Preliminary Round': 0,
+            'Preliminary': 0,
+            '1st Qualifying Round': 1,
+            '1st Qualifying': 1,
+            'First Qualifying Round': 1,
+            '2nd Qualifying Round': 2,
+            '2nd Qualifying': 2,
+            'Second Qualifying Round': 2,
+            '3rd Qualifying Round': 3,
+            '3rd Qualifying': 3,
+            'Third Qualifying Round': 3,
+            'Play-offs': 4,
+            'Play-offs Round': 4,
+            'Playoff': 4,
+            'Playoff Round': 4,
+            'Round of 16': 5,
+            'Round of 16th': 5,
+            '16th Round': 5,
+            'Quarter-finals': 6,
+            'Quarter Final': 6,
+            'Quarter Final Round': 6,
+            'Semi-finals': 7,
+            'Semi Final': 7,
+            'Semi Final Round': 7,
+            'Final': 8,
+            'Final Round': 8
+        }
+        
+        return round_order
+    
+    # Get the round order dictionary
+    round_order_dict = get_round_order_key()
+    
+    # Helper function to get order for a round name
+    def get_round_order(round_name):
+        """Get order for a specific round name"""
+        round_name_lower = round_name.lower().strip()
+        
+        # Try exact match first
+        if round_name in round_order_dict:
+            return round_order_dict[round_name]
+        
+        # Try case-insensitive match
+        for ordered_round in round_order_dict:
+            if round_name_lower == ordered_round.lower():
+                return round_order_dict[ordered_round]
+        
+        # Try partial match with more flexible matching
+        for ordered_round, order_value in round_order_dict.items():
+            ordered_round_lower = ordered_round.lower()
+            
+            # Check for key words that indicate the round
+            if 'final' in round_name_lower and 'final' in ordered_round_lower:
+                return order_value
+            if 'semi' in round_name_lower and 'semi' in ordered_round_lower:
+                return order_value
+            if 'quarter' in round_name_lower and 'quarter' in ordered_round_lower:
+                return order_value
+            if '16' in round_name_lower and '16' in ordered_round_lower:
+                return order_value
+            if 'play' in round_name_lower and 'play' in ordered_round_lower:
+                return order_value
+            if 'qualifying' in round_name_lower and 'qualifying' in ordered_round_lower:
+                # Check for 1st, 2nd, 3rd
+                if '1st' in round_name_lower or '1' in round_name_lower:
+                    if '1st' in ordered_round_lower:
+                        return order_value
+                elif '2nd' in round_name_lower or '2' in round_name_lower:
+                    if '2nd' in ordered_round_lower:
+                        return order_value
+                elif '3rd' in round_name_lower or '3' in round_name_lower:
+                    if '3rd' in ordered_round_lower:
+                        return order_value
+            if 'preliminary' in round_name_lower and 'preliminary' in ordered_round_lower:
+                return order_value
+        
+        # Try to match by removing common prefixes/suffixes
+        clean_name = round_name_lower.replace('round', '').replace('stage', '').strip()
+        for ordered_round, order_value in round_order_dict.items():
+            ordered_round_lower = ordered_round.lower()
+            if clean_name in ordered_round_lower or ordered_round_lower in clean_name:
+                return order_value
+        
+        # Default to end for unknown rounds
+        return 999
+    
     sorted_competitions = {}
-    for round_type in sorted(competitions_by_type.keys()):
+    for round_type in sorted(competitions_by_type.keys(), key=get_round_order):
         sorted_competitions[round_type] = {}
-        for round_number in sorted(competitions_by_type[round_type].keys(), key=lambda x: str(x)):
+        for round_number in sorted(competitions_by_type[round_type].keys(), key=get_round_order):
             sorted_competitions[round_type][round_number] = competitions_by_type[round_type][round_number]
     
     context = {
@@ -318,6 +408,7 @@ def league_detail(request, league_id):
         'standings': regular_season_standings,
         'group_standings': group_standings,
         'other_competitions': sorted_competitions,
+        'round_order_dict': round_order_dict,
         'selected_season': selected_season,
         'available_seasons': available_seasons,
     }
