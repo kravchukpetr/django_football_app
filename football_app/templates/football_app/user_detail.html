@@ -252,6 +252,9 @@
                                 <td>
                                     {% if prediction.match.is_finished %}
                                         {{ prediction.match.home_goals }}-{{ prediction.match.away_goals }}
+                                        {% if prediction.match.status_short == "PEN" and prediction.match.home_score_penalty is not None and prediction.match.away_score_penalty is not None %}
+                                            <span class="text-muted">({{ prediction.match.home_score_penalty }}-{{ prediction.match.away_score_penalty }})</span>
+                                        {% endif %}
                                     {% else %}
                                         <span class="badge bg-secondary">{{ prediction.match.get_status_display }}</span>
                                     {% endif %}

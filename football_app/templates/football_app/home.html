@@ -63,7 +63,12 @@
                                         </small>
                                     </div>
                                     <div class="text-end">
-                                        <span class="match-result">{{ match.home_goals }}-{{ match.away_goals }}</span>
+                                        <span class="match-result">
+                                            {{ match.home_goals }}-{{ match.away_goals }}
+                                            {% if match.status_short == "PEN" and match.home_score_penalty is not None and match.away_score_penalty is not None %}
+                                                <span class="text-muted">({{ match.home_score_penalty }}-{{ match.away_score_penalty }})</span>
+                                            {% endif %}
+                                        </span>
                                         <br>
                                         <small class="text-muted">{{ match.date|date:"M d" }}</small>
                                     </div>

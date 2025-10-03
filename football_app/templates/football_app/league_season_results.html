@@ -158,7 +158,12 @@
                                                 </div>
                                                 <div class="col-2 text-center">
                                                     {% if match.status_long == 'Match Finished' %}
-                                                        <span class="match-result fs-5">{{ match.home_goals }}-{{ match.away_goals }}</span>
+                                                        <span class="match-result fs-5">
+                                                            {{ match.home_goals }}-{{ match.away_goals }}
+                                                            {% if match.status_short == "PEN" and match.home_score_penalty is not None and match.away_score_penalty is not None %}
+                                                                <span class="text-muted">({{ match.home_score_penalty }}-{{ match.away_score_penalty }})</span>
+                                                            {% endif %}
+                                                        </span>
                                                     {% elif match.status_long == 'In Progress' or match.status_long == 'First Half, Kick Off' or match.status_long == 'Second Half, 2nd Half Started' or match.status_long == 'Extra Time' or match.status_long == 'Penalty In Progress' %}
                                                         <span class="badge bg-warning">LIVE</span>
                                                     {% else %}

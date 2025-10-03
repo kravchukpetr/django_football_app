@@ -169,110 +169,127 @@ def league_detail(request, league_id):
         date__gte=timezone.now()
     ).select_related('home_team', 'away_team', 'season').order_by('date')[:10]
     
-    # Calculate standings - get teams that have played in Regular Season matches only
-    team_ids = set()
-    team_ids.update(Fixture.objects.filter(
-        league=league, 
-        season=selected_season, 
-        round_type='Regular Season'
-    ).values_list('home_team_id', flat=True))
-    team_ids.update(Fixture.objects.filter(
-        league=league, 
-        season=selected_season, 
-        round_type='Regular Season'
-    ).values_list('away_team_id', flat=True))
-    teams = Team.objects.filter(id__in=team_ids)
-    standings = []
-    
-    for team in teams:
-        # Get finished Regular Season matches for this team in the selected season
-        home_matches = Fixture.objects.filter(
-            home_team=team, 
+    # Calculate standings for Regular Season and Group% round_types
+    def calculate_standings_for_round_type(round_type):
+        """Calculate standings for a specific round type"""
+        team_ids = set()
+        team_ids.update(Fixture.objects.filter(
             league=league, 
             season=selected_season, 
-            status_long='Match Finished',
-            round_type='Regular Season'
-        )
-        away_matches = Fixture.objects.filter(
-            away_team=team, 
+            round_type=round_type
+        ).values_list('home_team_id', flat=True))
+        team_ids.update(Fixture.objects.filter(
             league=league, 
             season=selected_season, 
-            status_long='Match Finished',
-            round_type='Regular Season'
-        )
+            round_type=round_type
+        ).values_list('away_team_id', flat=True))
+        teams = Team.objects.filter(id__in=team_ids)
+        standings = []
         
-        played = home_matches.count() + away_matches.count()
-        wins = (home_matches.filter(home_goals__gt=F('away_goals')).count() + 
-                away_matches.filter(away_goals__gt=F('home_goals')).count())
-        draws = (home_matches.filter(home_goals=F('away_goals')).count() + 
-                 away_matches.filter(away_goals=F('home_goals')).count())
-        losses = played - wins - draws
+        for team in teams:
+            # Get finished matches for this team in the selected season and round type
+            home_matches = Fixture.objects.filter(
+                home_team=team, 
+                league=league, 
+                season=selected_season, 
+                status_long='Match Finished',
+                round_type=round_type
+            )
+            away_matches = Fixture.objects.filter(
+                away_team=team, 
+                league=league, 
+                season=selected_season, 
+                status_long='Match Finished',
+                round_type=round_type
+            )
+            
+            played = home_matches.count() + away_matches.count()
+            wins = (home_matches.filter(home_goals__gt=F('away_goals')).count() + 
+                    away_matches.filter(away_goals__gt=F('home_goals')).count())
+            draws = (home_matches.filter(home_goals=F('away_goals')).count() + 
+                     away_matches.filter(away_goals=F('home_goals')).count())
+            losses = played - wins - draws
+            
+            # Calculate goals manually to avoid CombinedExpression issues
+            goals_for = 0
+            goals_against = 0
+            
+            # Home matches - team's goals are home_goals
+            for match in home_matches:
+                if match.home_goals is not None:
+                    goals_for += match.home_goals
+                if match.away_goals is not None:
+                    goals_against += match.away_goals
+            
+            # Away matches - team's goals are away_goals
+            for match in away_matches:
+                if match.away_goals is not None:
+                    goals_for += match.away_goals
+                if match.home_goals is not None:
+                    goals_against += match.home_goals
+            
+            goal_difference = goals_for - goals_against
+            points = wins * 3 + draws
+            
+            # Calculate recent form (last 5 matches)
+            all_team_matches = list(home_matches) + list(away_matches)
+            all_team_matches.sort(key=lambda x: x.date, reverse=True)
+            last_5_matches = all_team_matches[:5]
+            
+            form = []
+            for match in last_5_matches:
+                if match.home_team == team:
+                    if match.home_goals > match.away_goals:
+                        form.append('W')
+                    elif match.home_goals < match.away_goals:
+                        form.append('L')
+                    else:
+                        form.append('D')
+                else:  # away match
+                    if match.away_goals > match.home_goals:
+                        form.append('W')
+                    elif match.away_goals < match.home_goals:
+                        form.append('L')
+                    else:
+                        form.append('D')
+            
+            standings.append({
+                'team': team,
+                'played': played,
+                'wins': wins,
+                'draws': draws,
+                'losses': losses,
+                'goals_for': goals_for,
+                'goals_against': goals_against,
+                'goal_difference': goal_difference,
+                'points': points,
+                'form': form,
+            })
         
-        # Calculate goals manually to avoid CombinedExpression issues
-        goals_for = 0
-        goals_against = 0
-        
-        # Home matches - team's goals are home_goals
-        for match in home_matches:
-            if match.home_goals is not None:
-                goals_for += match.home_goals
-            if match.away_goals is not None:
-                goals_against += match.away_goals
-        
-        # Away matches - team's goals are away_goals
-        for match in away_matches:
-            if match.away_goals is not None:
-                goals_for += match.away_goals
-            if match.home_goals is not None:
-                goals_against += match.home_goals
-        
-        goal_difference = goals_for - goals_against
-        points = wins * 3 + draws
-        
-        # Calculate recent form (last 5 matches)
-        all_team_matches = list(home_matches) + list(away_matches)
-        all_team_matches.sort(key=lambda x: x.date, reverse=True)
-        last_5_matches = all_team_matches[:5]
-        
-        form = []
-        for match in last_5_matches:
-            if match.home_team == team:
-                if match.home_goals > match.away_goals:
-                    form.append('W')
-                elif match.home_goals < match.away_goals:
-                    form.append('L')
-                else:
-                    form.append('D')
-            else:  # away match
-                if match.away_goals > match.home_goals:
-                    form.append('W')
-                elif match.away_goals < match.home_goals:
-                    form.append('L')
-                else:
-                    form.append('D')
-        
-        standings.append({
-            'team': team,
-            'played': played,
-            'wins': wins,
-            'draws': draws,
-            'losses': losses,
-            'goals_for': goals_for,
-            'goals_against': goals_against,
-            'goal_difference': goal_difference,
-            'points': points,
-            'form': form,
-        })
+        # Sort by points, then goal difference, then goals for
+        standings.sort(key=lambda x: (-x['points'], -x['goal_difference'], -x['goals_for']))
+        return standings
     
-    # Sort by points, then goal difference, then goals for
-    standings.sort(key=lambda x: (-x['points'], -x['goal_difference'], -x['goals_for']))
+    # Get standings for Regular Season
+    regular_season_standings = calculate_standings_for_round_type('Regular Season')
     
-    # Get non-regular season fixtures grouped by round_type and round_number
+    # Get standings for Group% round_types
+    group_standings = {}
+    group_round_types = Fixture.objects.filter(
+        league=league,
+        season=selected_season,
+        round_type__startswith='Group'
+    ).values_list('round_type', flat=True).distinct()
+    
+    for group_round_type in group_round_types:
+        group_standings[group_round_type] = calculate_standings_for_round_type(group_round_type)
+    
+    # Get non-regular season fixtures grouped by round_type and round_number (excluding Group% round_types)
     other_competitions = Fixture.objects.filter(
         league=league,
         season=selected_season,
         status_long='Match Finished'
-    ).exclude(round_type='Regular Season').select_related('home_team', 'away_team').order_by('round_type', 'round_number', 'date')
+    ).exclude(round_type='Regular Season').exclude(round_type__startswith='Group').select_related('home_team', 'away_team').order_by('round_type', 'round_number', 'date')
     
     # Group other competitions by round_type
     competitions_by_type = {}
@@ -298,7 +315,8 @@ def league_detail(request, league_id):
         'league': league,
         'recent_matches': recent_matches,
         'upcoming_matches': upcoming_matches,
-        'standings': standings,
+        'standings': regular_season_standings,
+        'group_standings': group_standings,
         'other_competitions': sorted_competitions,
         'selected_season': selected_season,
         'available_seasons': available_seasons,
