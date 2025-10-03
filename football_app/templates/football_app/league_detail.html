@@ -271,20 +271,20 @@
                                                 <div class="row">
                                                     {% for match in matches %}
                                                     <div class="col-md-6 mb-2">
-                                                        <div class="border rounded p-2">
+                                                        <div class="border rounded p-2 match-card">
                                                             <div class="d-flex justify-content-between align-items-center">
                                                                 <div class="flex-grow-1">
                                                                     <div class="d-flex align-items-center">
                                                                         {% if match.home_team.logo_image %}
                                                                             <img src="{{ match.home_team.logo_image }}" alt="{{ match.home_team.name }}" style="width: 16px; height: auto;" class="me-2">
                                                                         {% endif %}
-                                                                        <strong>{{ match.home_team.name }}</strong>
+                                                                        <strong><a href="{% url 'team_detail' match.home_team.id %}" class="text-decoration-none">{{ match.home_team.name }}</a></strong>
                                                                     </div>
                                                                     <div class="d-flex align-items-center mt-1">
                                                                         {% if match.away_team.logo_image %}
                                                                             <img src="{{ match.away_team.logo_image }}" alt="{{ match.away_team.name }}" style="width: 16px; height: auto;" class="me-2">
                                                                         {% endif %}
-                                                                        <strong>{{ match.away_team.name }}</strong>
+                                                                        <strong><a href="{% url 'team_detail' match.away_team.id %}" class="text-decoration-none">{{ match.away_team.name }}</a></strong>
                                                                     </div>
                                                                 </div>
                                                                 <div class="text-end">
@@ -299,6 +299,11 @@
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    {% if forloop.counter|divisibleby:2 and not forloop.last %}
+                                                    <div class="col-12">
+                                                        <hr class="my-2" style="border-top: 1px dashed #dee2e6;">
+                                                    </div>
+                                                    {% endif %}
                                                     {% endfor %}
                                                 </div>
                                             </div>

@@ -324,6 +324,7 @@ def league_detail(request, league_id):
             'Play-offs Round': 4,
             'Playoff': 4,
             'Playoff Round': 4,
+            'Knockout Round Play-offs': 5,
             'Round of 16': 5,
             'Round of 16th': 5,
             '16th Round': 5,
@@ -395,11 +396,34 @@ def league_detail(request, league_id):
         # Default to end for unknown rounds
         return 999
     
+    # Function to group matches by team pairs for playoff rounds
+    def group_matches_by_team_pairs(matches):
+        """Group matches by team pairs (Team A vs Team B)"""
+        team_pairs = {}
+        for match in matches:
+            # Create a consistent key for the team pair regardless of home/away order
+            team_ids = tuple(sorted([match.home_team.id, match.away_team.id]))
+            if team_ids not in team_pairs:
+                team_pairs[team_ids] = []
+            team_pairs[team_ids].append(match)
+        
+        # Convert to list of grouped matches
+        grouped_matches = []
+        for team_pair, pair_matches in team_pairs.items():
+            # Sort matches in the pair by date
+            pair_matches.sort(key=lambda x: x.date)
+            grouped_matches.extend(pair_matches)
+        
+        return grouped_matches
+    
     sorted_competitions = {}
     for round_type in sorted(competitions_by_type.keys(), key=get_round_order):
         sorted_competitions[round_type] = {}
         for round_number in sorted(competitions_by_type[round_type].keys(), key=get_round_order):
-            sorted_competitions[round_type][round_number] = competitions_by_type[round_type][round_number]
+            matches = competitions_by_type[round_type][round_number]
+            # Group matches by team pairs for better organization
+            grouped_matches = group_matches_by_team_pairs(matches)
+            sorted_competitions[round_type][round_number] = grouped_matches
     
     context = {
         'league': league,
