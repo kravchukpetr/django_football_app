@@ -273,14 +273,17 @@ class PredictionFilterForm(forms.Form):
         user_groups = kwargs.pop('user_groups', None)
         super().__init__(*args, **kwargs)
         
-        # Set league choices based on user's groups
+        # Set league choices based on user's groups - only show active leagues
         if user_groups:
             from .models import League
-            leagues = League.objects.filter(prediction_groups__in=user_groups).distinct()
+            leagues = League.objects.filter(
+                prediction_groups__in=user_groups,
+                is_active=True
+            ).distinct()
             self.fields['league'].queryset = leagues
         else:
             from .models import League
-            self.fields['league'].queryset = League.objects.all()
+            self.fields['league'].queryset = League.objects.filter(is_active=True)
 
 
 class UserSignUpForm(UserCreationForm):

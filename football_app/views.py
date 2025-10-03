@@ -151,9 +151,13 @@ def league_detail(request, league_id):
         league=league
     ).order_by('-start_year')
     
-    # If no seasons exist for this league, show all active seasons
+    # If no seasons exist for this league, show current seasons for active leagues
     if not available_seasons.exists():
-        available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
+        available_seasons = Season.objects.filter(
+            is_current=True,
+            is_active=True,
+            league__is_active=True
+        ).order_by('-start_year')
     
     # Get recent and upcoming matches for the selected season
     recent_matches = Fixture.objects.filter(
@@ -458,9 +462,13 @@ def league_season_results(request, league_id):
         league=league
     ).order_by('-start_year')
     
-    # If no seasons exist for this league, show all active seasons
+    # If no seasons exist for this league, show current seasons for active leagues
     if not available_seasons.exists():
-        available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
+        available_seasons = Season.objects.filter(
+            is_current=True,
+            is_active=True,
+            league__is_active=True
+        ).order_by('-start_year')
     
     # Get all matches for this league and season
     matches = Fixture.objects.filter(
@@ -534,9 +542,13 @@ def team_detail(request, team_id):
         Q(matches__home_team=team) | Q(matches__away_team=team)
     ).distinct().order_by('-start_year')
     
-    # If no seasons have matches for this team, show all active seasons
+    # If no seasons have matches for this team, show current seasons for active leagues
     if not available_seasons.exists():
-        available_seasons = Season.objects.filter(is_active=True).order_by('-start_year')
+        available_seasons = Season.objects.filter(
+            is_current=True,
+            is_active=True,
+            league__is_active=True
+        ).order_by('-start_year')
     
     # Get team's matches for the selected season
     home_matches = Fixture.objects.filter(
@@ -849,7 +861,9 @@ def prediction_center(request):
     
     # Get all available seasons for the dropdown
     available_seasons = Season.objects.filter(
-        is_active=True
+        is_current=True,
+        is_active=True,
+        league__is_active=True
     ).select_related('league', 'league__country').order_by('-start_year')
     
     # Get user's groups to filter relevant matches
@@ -970,7 +984,10 @@ def bulk_predictions(request):
     
     # Get base queryset
     if user_groups.exists():
-        leagues = League.objects.filter(prediction_groups__in=user_groups).distinct()
+        leagues = League.objects.filter(
+            prediction_groups__in=user_groups,
+            is_active=True
+        ).distinct()
         matches = Fixture.objects.filter(
             league__in=leagues,
             status_long='Not Started',
@@ -1044,7 +1061,9 @@ def my_predictions(request):
     
     # Get all available seasons for the dropdown (seasons where user has predictions)
     available_seasons = Season.objects.filter(
-        matches__predictions__user=request.user
+        matches__predictions__user=request.user,
+        is_current=True,
+        league__is_active=True
     ).select_related('league', 'league__country').distinct().order_by('-start_year')
     
     # Get user's groups for filtering
